@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="版本">
+        <Preference
+            android:summary="收藏，历史和评论功能暂不可用，可能会在后续版本实现。"
+            android:title="Beta 0.1 试验性版本" />
+        <Preference
+            android:summary=""
+            android:title="插件引擎: SiteD v13" />
+        <Preference
+            android:summary="https://github.com/Goshin/Buka-Darkness/releases\n点击此处访问"
+            android:title="更新地址">
+            <intent
+                android:action="android.intent.action.VIEW"
+                android:data="https://github.com/Goshin/Buka-Darkness/releases" />
+        </Preference>
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="声明">
+        <Preference
+            android:summary="软件仅用作个人学习测试使用"
+            android:title="仅供测试" />
+        <Preference
+            android:summary="https://github.com/Goshin/Buka-Darkness"
+            android:title="源代码">
+            <intent
+                android:action="android.intent.action.VIEW"
+                android:data="https://github.com/Goshin/Buka-Darkness" />
+        </Preference>
+        <Preference
+            android:summary="软件及源代码基于 GPLv3 协议发布"
+            android:title="GNU 通用公共许可协议" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="作者">
+        <Preference
+            android:summary="githubjohn@gmail.com\n正式的建议和反馈请在 GitHub 提交 issue"
+            android:title="John" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="致谢">
+        <Preference
+            android:summary="https://github.com/noear/SiteD"
+            android:title="多多猫 SiteD 及作者 @noear">
+            <intent
+                android:action="android.intent.action.VIEW"
+                android:data="https://github.com/noear/SiteD" />
+        </Preference>
+    </PreferenceCategory>
+</PreferenceScreen>

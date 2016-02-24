@@ -8,6 +8,8 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Process;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.noear.sited.SdApi;
 import org.noear.sited.SdLogListener;
@@ -70,6 +72,7 @@ public class Server extends Service {
                 }
             }
         }).start();
+        SiteDBridge.loadSources(this);
     }
 
     /**
@@ -145,7 +148,8 @@ public class Server extends Service {
                 JSONObject params = new JSONObject(bundle.getString("params"));
                 final MangaSource.Callback sendResponseCallback = new MangaSource.Callback() {
                     @Override
-                    public void run(String result) {
+                    public void run(Object... objects) {
+                        String result = (String) objects[0];
                         try {
                             Writer out = new OutputStreamWriter(clientSocket.getOutputStream(), "utf-8");
                             out.write(URLEncoder.encode(result, "utf-8") + "\n");
@@ -157,29 +161,72 @@ public class Server extends Service {
                 };
 
                 int sourceID = Integer.parseInt("0" + params.optString("fp"));
-                MangaSource mangaSource = SiteDBridge.sources.get(sourceID);
+                final MangaSource mangaSource;
+                if (SiteDBridge.sources.size() > sourceID) {
+                    mangaSource = SiteDBridge.sources.get(sourceID);
+                } else {
+                    mangaSource = null;
+                }
                 switch (params.optString("f").toLowerCase()) {
                     case "func_getmangagroups":
-                        SiteDBridge.initSource(0, "http://sited.noear.org/addin/site1035.sited.xml", new Runnable() {
-                            @Override
-                            public void run() {
-                                sendResponseCallback.run("[{\"gname\":\"比比猴漫画站\",\"gid\":\"0\"}]");
-                            }
-                        });
+                        sendResponseCallback.run(SiteDBridge.getGroupJson());
                         break;
                     case "func_getgroupitems":
                         if (mangaSource == null) {
                             clientSocket.close();
                             break;
                         }
-                        mangaSource.getHots(sendResponseCallback);
+                        mangaSource.getHots(new MangaSource.Callback() {
+                            @Override
+                            public void run(Object... objects) {
+                                String result = (String) objects[0];
+                                MangaSource currentMangaSource = (MangaSource) objects[1];
+                                try {
+                                    JSONArray jsonArray = new JSONArray(result);
+                                    for (int i = 0; i < jsonArray.length(); i++) {
+                                        JSONObject book = jsonArray.getJSONObject(i);
+                                        book.put("sourceID", String.valueOf(SiteDBridge.sources.indexOf(currentMangaSource)));
+                                        book.put("sourceName", currentMangaSource.title);
+                                    }
+                                    sendResponseCallback.run(jsonArray.toString());
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
                         break;
                     case "func_search":
-                        if (mangaSource == null) {
-                            clientSocket.close();
-                            break;
+                        MangaSource.Callback searchCallback = new MangaSource.Callback() {
+                            private int sourceCount = SiteDBridge.sources.size();
+                            private JSONArray searchResult = new JSONArray();
+
+                            @Override
+                            public void run(Object... objects) {
+                                String result = (String) objects[0];
+                                MangaSource currentMangaSource = (MangaSource) objects[1];
+                                try {
+                                    JSONArray jsonArray = new JSONArray(result);
+                                    for (int i = 0; i < jsonArray.length(); i++) {
+                                        JSONObject book = jsonArray.getJSONObject(i);
+                                        book.put("sourceID", String.valueOf(SiteDBridge.sources.indexOf(currentMangaSource)));
+                                        book.put("sourceName", currentMangaSource.title);
+                                        searchResult.put(book);
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                                if (sourceCount-- == 1) {
+                                    sendResponseCallback.run(searchResult.toString());
+                                }
+                            }
+                        };
+                        if (SiteDBridge.sources.size() == 0) {
+                            sendResponseCallback.run("[]");
+                        } else {
+                            for (int i = 0; i < SiteDBridge.sources.size(); i++) {
+                                SiteDBridge.sources.get(i).search(params.optString("text"), searchCallback);
+                            }
                         }
-                        mangaSource.search(params.optString("text"), sendResponseCallback);
                         break;
                     case "func_getdetail":
                         if (mangaSource == null) {

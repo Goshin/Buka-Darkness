@@ -189,7 +189,11 @@ public class Hook implements IXposedHookLoadPackage {
             }
         };
 
-        if (Build.VERSION.SDK_INT >= 19) {
+        int apiLevel = Build.VERSION.SDK_INT;
+        if (apiLevel >= 23) {
+            //noinspection SpellCheckingInspection
+            XposedHelpers.findAndHookMethod("com.android.okhttp.internal.huc.HttpURLConnectionImpl", loadPackageParam.classLoader, "getInputStream", URLGetInputStreamHook);
+        } else if (apiLevel >= 19) {
             //noinspection SpellCheckingInspection
             XposedHelpers.findAndHookMethod("com.android.okhttp.internal.http.HttpURLConnectionImpl", loadPackageParam.classLoader, "getInputStream", URLGetInputStreamHook);
         } else {
@@ -213,10 +217,17 @@ public class Hook implements IXposedHookLoadPackage {
                 ((Activity) param.thisObject).stopService(serviceIntent);
             }
         };
+        XC_MethodHook onBackPressedHook = new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                ((Activity) param.thisObject).finish();
+            }
+        };
 
         if (loadPackageParam.packageName.toLowerCase().contains("hd")) {
             XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.ActivityStartup", loadPackageParam.classLoader, "onCreate", Bundle.class, startServiceHook);
             XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.hd.HDActivityMain", loadPackageParam.classLoader, "onDestroy", stopServiceHook);
+            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.hd.HDActivityMain", loadPackageParam.classLoader, "onBackPressed", onBackPressedHook);
         } else {
             XposedHelpers.findAndHookMethod("cn.ibuka.manga.ui.ActivityStartup", loadPackageParam.classLoader, "onCreate", Bundle.class, startServiceHook);
             XposedHelpers.findAndHookMethod("cn.ibuka.manga.ui.ActivityMain", loadPackageParam.classLoader, "onDestroy", stopServiceHook);

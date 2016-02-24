@@ -13,14 +13,35 @@ public class MangaSource extends SdSource {
     private SdNodeSet home;
     private SdNodeSet main;
 
+    private String intro;
+    private String author;
+    private int type;
+
     public MangaSource(Application app, String xml) throws Exception {
         super(app, xml);
         main = getBody("main");
         home = (SdNodeSet) main.get("home");
+
+        author = attrs.getString("author");
+        intro = attrs.getString("intro");
+        type = main.attrs.getInt("dtype");
     }
 
     public interface Callback {
-        void run(String result);
+        void run(Object... objects);
+    }
+
+    public int getType() {
+        return type;
+    }
+
+
+    public String getAuthor() {
+        return author;
+    }
+
+    public String getIntro() {
+        return intro;
     }
 
     public void getHots(final Callback callback) {
@@ -29,7 +50,7 @@ public class MangaSource extends SdSource {
         getNodeViewModel(hotsViewModel, false, 1, hots, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
-                callback.run(hotsViewModel.getJsonData());
+                callback.run(hotsViewModel.getJsonData(), MangaSource.this);
             }
         });
     }
@@ -40,7 +61,7 @@ public class MangaSource extends SdSource {
         getNodeViewModel(searchViewModel, false, keyword, 1, search, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
-                callback.run(searchViewModel.getJsonData());
+                callback.run(searchViewModel.getJsonData(), MangaSource.this);
             }
         });
     }

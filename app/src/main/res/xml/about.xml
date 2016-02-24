@@ -3,16 +3,13 @@
     <PreferenceCategory android:title="版本">
         <Preference
             android:summary="收藏，历史和评论功能暂不可用，可能会在后续版本实现。"
-            android:title="Beta 0.1 试验性版本" />
+            android:title="Beta 0.2 试验性版本" />
         <Preference
-            android:summary=""
-            android:title="插件引擎: SiteD v13" />
-        <Preference
-            android:summary="https://github.com/Goshin/Buka-Darkness/releases\n点击此处访问"
-            android:title="更新地址">
+            android:summary="http://sited.noear.org/\n点击访问插件引擎主页"
+            android:title="插件引擎: SiteD v13">
             <intent
                 android:action="android.intent.action.VIEW"
-                android:data="https://github.com/Goshin/Buka-Darkness/releases" />
+                android:data="http://sited.noear.org/" />
         </Preference>
     </PreferenceCategory>
 

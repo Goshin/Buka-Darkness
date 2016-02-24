@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">Buka Darkness</string>
+
+    <string name="addSourceTips">请输入 多多猫 SiteD 源插件的 URL</string>
+    <string name="Sources">源插件</string>
+    <string name="about">关于</string>
+    <string name="add_source">添加源</string>
+    <string name="cancel">取消</string>
+    <string name="ok">确定</string>
+    <string name="add_source_failed">添加源插件失败</string>
+    <string name="add_source_success">添加源插件成功，重启布卡后生效</string>
+    <string name="network_error">网络错误</string>
+    <string name="source_type_error">不受支持的插件类型，需要为漫画插件</string>
+    <string name="loading_source">正在加载插件</string>
+    <string name="loading">正在加载</string>
+    <string name="delete_source">确认删除该源插件？</string>
+    <string name="author">\@%1$s</string>
 </resources>

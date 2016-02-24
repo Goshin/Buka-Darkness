@@ -47,8 +47,6 @@ public class Items implements MangaAdapter {
 
         if (params.optString("f").equals("func_getgroupitems")) {
             params.put("fp", Groups.sourceMap.get(params.getString("fp")).first);
-        } else if (params.optString("f").equals("func_search")) {
-            params.put("fp", Groups.sourceMap.get(Groups.GROUP_PREFIX + 0).first);
         }
 
         JSONArray list = new JSONArray(Client.request(params));
@@ -74,7 +72,7 @@ public class Items implements MangaAdapter {
             book.put("name", data.optString("name"));
 
             String mangaID = MANGA_PREFIX + Utils.fixedBitsHash(data.optString("url"));
-            mangaIDMap.put(mangaID, new Pair<>(params.optString("fp"), data.optString("url")));
+            mangaIDMap.put(mangaID, new Pair<>(data.optString("sourceID"), data.optString("url")));
             book.put("mid", mangaID);
 
             String logo = data.optString("logo");
@@ -84,6 +82,8 @@ public class Items implements MangaAdapter {
             book.put("logo", fakeCoverDir + "1.jpg");
             book.put("logos", fakeCoverDir + "1.jpg");
             book.put("logodir", fakeCoverDir);
+
+            book.put("author", data.optString("sourceName"));
 
             result.getJSONArray("items").put(book);
         }

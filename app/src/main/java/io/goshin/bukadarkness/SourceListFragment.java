@@ -4,6 +4,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,13 +31,14 @@ import org.noear.sited.SdLogListener;
 import org.noear.sited.SdNodeFactory;
 import org.noear.sited.SdSource;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import cz.msebera.android.httpclient.Header;
-import io.goshin.bukadarkness.database.SourceDatabase;
+import io.goshin.bukadarkness.database.SourceSettingsDatabase;
 import io.goshin.bukadarkness.sited.MangaSource;
 
 public class SourceListFragment extends Fragment {
@@ -62,10 +64,63 @@ public class SourceListFragment extends Fragment {
             public void run(SdSource source, String tag, String msg, Throwable tr) {
             }
         });
-        tryInstallSource(activity.getIntent());
-        setUpRecyclerView();
+
+        if (activity.getSharedPreferences("upgrade", Context.MODE_PRIVATE).getInt("ver", 0) < 6) {
+            upgradeFileName();
+        } else {
+            setUpRecyclerView();
+        }
 
         return view;
+    }
+
+    private void upgradeFileName() {
+        final Handler handler = new Handler();
+        final ProgressDialog progressDialog = new ProgressDialog(activity);
+        progressDialog.setTitle(activity.getString(R.string.loading));
+        progressDialog.setMessage(activity.getString(R.string.upgrading));
+        progressDialog.show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                String[] fileList = activity.fileList();
+                for (String filename : fileList) {
+                    try {
+                        FileInputStream fileInputStream = activity.openFileInput(filename);
+                        byte[] buffer = new byte[fileInputStream.available()];
+                        if (fileInputStream.read(buffer) == -1) {
+                            continue;
+                        }
+                        String xml = new String(buffer);
+                        fileInputStream.close();
+
+                        MangaSource mangaSource = new MangaSource(activity.getApplication(), xml);
+                        String md5 = mangaSource.url_md5;
+                        File oldFile = activity.getFileStreamPath(filename);
+                        File newFile = activity.getFileStreamPath(md5);
+                        if (oldFile.renameTo(newFile)) {
+                            SourceSettingsDatabase database = new SourceSettingsDatabase(activity);
+                            database.delete(filename);
+                            database.add(md5);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressDialog.dismiss();
+                        setUpRecyclerView();
+                        SharedPreferences.Editor editor = activity.getSharedPreferences("upgrade", Context.MODE_PRIVATE).edit();
+                        editor.putInt("ver", 6);
+                        editor.apply();
+                    }
+                });
+            }
+        }).start();
     }
 
     private void setUpRecyclerView() {
@@ -135,7 +190,7 @@ public class SourceListFragment extends Fragment {
                                             public void onClick(DialogInterface dialog, int which) {
                                                 String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
                                                 activity.deleteFile(filename);
-                                                new SourceDatabase(activity).delete(filename);
+                                                new SourceSettingsDatabase(activity).delete(filename);
                                                 sourceCardListAdapter.removeData(position);
                                             }
                                         })
@@ -145,6 +200,7 @@ public class SourceListFragment extends Fragment {
                         });
                         recyclerView.setAdapter(sourceCardListAdapter);
                         progressDialog.dismiss();
+                        tryInstallSource(activity.getIntent());
                     }
                 });
             }
@@ -156,7 +212,7 @@ public class SourceListFragment extends Fragment {
         if (uri == null || !uri.getScheme().equals("sited")) {
             return;
         }
-        final String url = new String(Base64.decode(uri.toString().substring(uri.toString().lastIndexOf("/") + 1), Base64.DEFAULT));
+        final String url = new String(Base64.decode(uri.toString().substring(uri.toString().lastIndexOf("?") + 1), Base64.DEFAULT));
         final Callback onError = new Callback() {
             @Override
             public void run(Object... args) {
@@ -175,9 +231,9 @@ public class SourceListFragment extends Fragment {
                         onError.run(activity.getString(R.string.source_type_error));
                         return;
                     }
-                    String filename = url.substring(url.lastIndexOf("/") + 1);
+                    String filename = mangaSource.url_md5;
                     writeToFile(filename, xml);
-                    new SourceDatabase(activity).add(filename);
+                    new SourceSettingsDatabase(activity).add(filename);
                     Snackbar.make(view.findViewById(R.id.recyclerView),
                             R.string.add_source_success, Snackbar.LENGTH_LONG).show();
 

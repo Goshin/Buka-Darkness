@@ -164,13 +164,7 @@ public class Server extends Service {
                     }
                 };
 
-                int sourceID = Integer.parseInt("0" + params.optString("fp"));
-                final MangaSource mangaSource;
-                if (SiteDBridge.sources.size() > sourceID) {
-                    mangaSource = SiteDBridge.sources.get(sourceID);
-                } else {
-                    mangaSource = null;
-                }
+                final MangaSource mangaSource = SiteDBridge.sources.get(params.optString("fp"));
                 switch (params.optString("f").toLowerCase()) {
                     case "func_getmangagroups":
                         sendResponseCallback.run(SiteDBridge.getGroupJson());
@@ -189,7 +183,7 @@ public class Server extends Service {
                                     JSONArray jsonArray = new JSONArray(result);
                                     for (int i = 0; i < jsonArray.length(); i++) {
                                         JSONObject book = jsonArray.getJSONObject(i);
-                                        book.put("sourceID", String.valueOf(SiteDBridge.sources.indexOf(currentMangaSource)));
+                                        book.put("sourceID", SiteDBridge.filenameOfMangaSource(currentMangaSource));
                                         book.put("sourceName", currentMangaSource.title);
                                     }
                                     sendResponseCallback.run(jsonArray.toString());
@@ -213,7 +207,7 @@ public class Server extends Service {
                                     JSONArray jsonArray = new JSONArray(result);
                                     for (int i = 0; i < jsonArray.length(); i++) {
                                         JSONObject book = jsonArray.getJSONObject(i);
-                                        book.put("sourceID", String.valueOf(SiteDBridge.sources.indexOf(currentMangaSource)));
+                                        book.put("sourceID", SiteDBridge.filenameOfMangaSource(currentMangaSource));
                                         book.put("sourceName", currentMangaSource.title);
                                         searchResult.put(book);
                                     }
@@ -228,8 +222,8 @@ public class Server extends Service {
                         if (SiteDBridge.sources.size() == 0) {
                             sendResponseCallback.run("[]");
                         } else {
-                            for (int i = 0; i < SiteDBridge.sources.size(); i++) {
-                                SiteDBridge.sources.get(i).search(params.optString("text"), searchCallback);
+                            for (MangaSource searchMangaSource : SiteDBridge.sources.values()) {
+                                searchMangaSource.search(params.optString("text"), searchCallback);
                             }
                         }
                         break;

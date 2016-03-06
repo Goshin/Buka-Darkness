@@ -1,26 +1,28 @@
 package io.goshin.bukadarkness.adapter;
 
-import android.support.v4.util.Pair;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-
 import io.goshin.bukadarkness.MangaAdapter;
+import io.goshin.bukadarkness.database.KVMapDatabase;
+import io.goshin.bukadarkness.database.MangaMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
-public class Items implements MangaAdapter {
-    public static final String MANGA_PREFIX = "989";
+public class Items extends MangaAdapter {
     public static final String COVER_PREFIX = "http://buka-darkness-cover-";
-    /* <mid, <sourceID, url>> */
-    public static HashMap<String, Pair<String, String>> mangaIDMap = new HashMap<>();
     /* <cid, url> */
-    public static HashMap<String, String> coverMap = new HashMap<>();
+    public static KVMapDatabase coverMap;
+    public static MangaMapDatabase mangaMapDatabase;
+
+    public static void initDatabase() {
+        mangaMapDatabase = new MangaMapDatabase(context);
+        coverMap = new KVMapDatabase(context, "cover");
+    }
 
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
-        return params.optString("fp").startsWith(Groups.GROUP_PREFIX);
+        return !params.optString("f").equals("func_search")
+                && !Groups.groupMapDatabase.getFilename(Long.parseLong(params.optString("fp"))).equals("");
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -46,7 +48,7 @@ public class Items implements MangaAdapter {
                 "}");
 
         if (params.optString("f").equals("func_getgroupitems")) {
-            params.put("fp", Groups.sourceMap.get(params.getString("fp")).first);
+            params.put("fp", Groups.groupMapDatabase.getFilename(Long.parseLong(params.getString("fp"))));
         }
 
         JSONArray list = new JSONArray(Client.request(params));
@@ -54,39 +56,44 @@ public class Items implements MangaAdapter {
             result.put("recom", 0);
             result.put("items", new JSONArray());
         }
-        for (int i = 0; i < list.length(); i++) {
-            JSONObject book = new JSONObject("        {\n" +
-                    "            \"mid\": \"212204\",\n" +
-                    "            \"name\": \"M站动漫资讯\",\n" +
-                    "            \"author\": \"Unknown\",\n" +
-                    "            \"logos\": \"http://c-r5.sosobook.cn/logo/logo5/212204/201501041820/43m.jpg\",\n" +
-                    "            \"logodir\": \"http://c-r5.sosobook.cn/logo/logo5/212204/201501041820\",\n" +
-                    "            \"logo\": \"http://c-r5.sosobook.cn/logo/logo5/212204/201501041820/43m.jpg\",\n" +
-                    "            \"lastchap\": \"0\",\n" +
-                    "            \"finish\": \"0\",\n" +
-                    "            \"rate\": \"99\",\n" +
-                    "            \"type\": \"0\",\n" +
-                    "            \"lastup\": \"xx话\"\n" +
-                    "        }");
-            JSONObject data = list.getJSONObject(i);
-            book.put("name", data.optString("name"));
+        synchronized (this) {
+            coverMap.putPrepare();
+            Index.imageReferrerMap.putPrepare();
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject book = new JSONObject("        {\n" +
+                        "            \"mid\": \"212204\",\n" +
+                        "            \"name\": \"M站动漫资讯\",\n" +
+                        "            \"author\": \"Unknown\",\n" +
+                        "            \"logos\": \"http://c-r5.sosobook.cn/logo/logo5/212204/201501041820/43m.jpg\",\n" +
+                        "            \"logodir\": \"http://c-r5.sosobook.cn/logo/logo5/212204/201501041820\",\n" +
+                        "            \"logo\": \"http://c-r5.sosobook.cn/logo/logo5/212204/201501041820/43m.jpg\",\n" +
+                        "            \"lastchap\": \"0\",\n" +
+                        "            \"finish\": \"0\",\n" +
+                        "            \"rate\": \"99\",\n" +
+                        "            \"type\": \"0\",\n" +
+                        "            \"lastup\": \"xx话\"\n" +
+                        "        }");
+                JSONObject data = list.getJSONObject(i);
+                book.put("name", data.optString("name"));
 
-            String mangaID = MANGA_PREFIX + Utils.fixedBitsHash(data.optString("url"));
-            mangaIDMap.put(mangaID, new Pair<>(data.optString("sourceID"), data.optString("url")));
-            book.put("mid", mangaID);
+                String mangaID = String.valueOf(mangaMapDatabase.getID(data.optString("sourceID"), data.optString("url")));
+                book.put("mid", mangaID);
 
-            String logo = Utils.getPathFromUrl(data.optString("logo"));
-            String logoHash = mangaID + Math.abs(logo.hashCode());
-            String fakeCoverDir = COVER_PREFIX + logoHash + "/";
-            coverMap.put(logoHash, logo);
-            Index.imageReferrerMap.put(logo, data.optString("url"));
-            book.put("logo", fakeCoverDir + "1.jpg");
-            book.put("logos", fakeCoverDir + "1.jpg");
-            book.put("logodir", fakeCoverDir);
+                String logo = Utils.getEncodedUrl(data.optString("logo"));
+                String logoHash = mangaID + Math.abs(logo.hashCode());
+                String fakeCoverDir = COVER_PREFIX + logoHash + "/";
+                coverMap.put(logoHash, logo);
+                Index.imageReferrerMap.put(logo, data.optString("url"));
+                book.put("logo", fakeCoverDir + "1.jpg");
+                book.put("logos", fakeCoverDir + "1.jpg");
+                book.put("logodir", fakeCoverDir);
 
-            book.put("author", data.optString("sourceName"));
+                book.put("author", data.optString("sourceName"));
 
-            result.getJSONArray("items").put(book);
+                result.getJSONArray("items").put(book);
+            }
+            coverMap.commit();
+            Index.imageReferrerMap.commit();
         }
 
         return result.toString();

@@ -1,10 +1,17 @@
 package io.goshin.bukadarkness;
 
+import android.content.Context;
+
 import org.json.JSONObject;
 
-public interface MangaAdapter {
+public abstract class MangaAdapter {
+    protected static Context context;
 
-    Boolean needRedirect(JSONObject params) throws Throwable;
+    public static void setContext(Context context) {
+        MangaAdapter.context = context;
+    }
 
-    String getResult(JSONObject params, JSONObject originalResult) throws Throwable;
+    protected abstract Boolean needRedirect(JSONObject params) throws Throwable;
+
+    protected abstract String getResult(JSONObject params, JSONObject originalResult) throws Throwable;
 }

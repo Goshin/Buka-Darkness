@@ -44,6 +44,7 @@ import io.goshin.bukadarkness.adapter.Detail;
 import io.goshin.bukadarkness.adapter.Groups;
 import io.goshin.bukadarkness.adapter.Index;
 import io.goshin.bukadarkness.adapter.Items;
+import io.goshin.bukadarkness.adapter.Rate;
 import io.goshin.bukadarkness.adapter.Utils;
 
 @SuppressWarnings("deprecation")
@@ -87,6 +88,9 @@ public class Hook implements IXposedHookLoadPackage {
                 break;
             case "contributioninfo":
                 adapter = new Contributions();
+                break;
+            case "mangarate":
+                adapter = new Rate();
                 break;
         }
         return adapter;
@@ -167,7 +171,7 @@ public class Hook implements IXposedHookLoadPackage {
                     log(throwable);
                 }
 
-                log("set result");
+                log("set result" + result);
                 response.setEntity(new ByteArrayEntity(getGzipByteArray(result)));
             }
 
@@ -264,6 +268,11 @@ public class Hook implements IXposedHookLoadPackage {
                 mainThreadHandler = new Handler();
                 activity = (Activity) param.thisObject;
                 activity.startService(serviceIntent);
+                MangaAdapter.setContext(activity);
+                Groups.initDatabase();
+                Items.initDatabase();
+                Detail.initDatabase();
+                Index.initDatabase(activity);
                 loadPreference();
             }
         };

@@ -1,19 +1,18 @@
 package io.goshin.bukadarkness.adapter;
 
-import android.support.v4.util.Pair;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-
 import io.goshin.bukadarkness.MangaAdapter;
+import io.goshin.bukadarkness.database.GroupMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
-public class Groups implements MangaAdapter {
-    public static final String GROUP_PREFIX = "987";
-    /* <gid, <sourceID, name>> */
-    public static HashMap<String, Pair<String, String>> sourceMap = new HashMap<>();
+public class Groups extends MangaAdapter {
+    public static GroupMapDatabase groupMapDatabase;
+
+    public static void initDatabase() {
+        groupMapDatabase = new GroupMapDatabase(context);
+    }
 
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
@@ -38,9 +37,8 @@ public class Groups implements MangaAdapter {
                     "    \"supportsort\": \"0\"\n" +
                     "}");
 
-            String gid = GROUP_PREFIX + data.optString("gid");
             String name = data.optString("gname");
-            sourceMap.put(gid, new Pair<>(data.optString("gid"), name));
+            String gid = String.valueOf(groupMapDatabase.getID(data.optString("gid"), name));
 
             group.put("gid", gid);
             group.put("gname", name);

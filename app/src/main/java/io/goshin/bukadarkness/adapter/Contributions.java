@@ -4,10 +4,10 @@ import org.json.JSONObject;
 
 import io.goshin.bukadarkness.MangaAdapter;
 
-public class Contributions implements MangaAdapter {
+public class Contributions extends MangaAdapter {
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
-        return params.optString("mid").startsWith(Items.MANGA_PREFIX);
+        return !Items.mangaMapDatabase.getUrl(params.optString("mid")).equals("");
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -16,8 +16,8 @@ public class Contributions implements MangaAdapter {
         if (originalResult != null) {
             return originalResult.toString();
         }
-        String groupID = Items.mangaIDMap.get(params.optString("mid")).first;
-        String sourceName = Groups.sourceMap.get(Groups.GROUP_PREFIX + groupID).second;
+        String groupFilename = Items.mangaMapDatabase.getFilename(params.optString("mid"));
+        String sourceName = Groups.groupMapDatabase.getName(groupFilename);
         return "{\n" +
                 "    \"ret\": 0,\n" +
                 "    \"copyrighttext\": \"版权声明\",\n" +

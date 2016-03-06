@@ -8,21 +8,22 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.FileInputStream;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
-import io.goshin.bukadarkness.database.SourceDatabase;
+import io.goshin.bukadarkness.database.SourceSettingsDatabase;
 import io.goshin.bukadarkness.sited.MangaSource;
 
 public class SiteDBridge {
     private static Application application;
-    public static ArrayList<MangaSource> sources = new ArrayList<>();
+    public static HashMap<String, MangaSource> sources = new HashMap<>();
 
     public static void setApplication(Application application) {
         SiteDBridge.application = application;
     }
 
     public static void loadSources(Context context) {
-        sources = new ArrayList<>();
+        sources = new HashMap<>();
         String[] fileList = context.fileList();
         for (String filename : fileList) {
             try {
@@ -34,8 +35,8 @@ public class SiteDBridge {
                 String xml = new String(buffer);
                 fileInputStream.close();
 
-                if (new SourceDatabase(context).isEnabled(filename)) {
-                    sources.add(0, new MangaSource(application, xml));
+                if (new SourceSettingsDatabase(context).isEnabled(filename)) {
+                    sources.put(filename, new MangaSource(application, xml));
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -45,17 +46,26 @@ public class SiteDBridge {
 
     public static String getGroupJson() {
         JSONArray jsonArray = new JSONArray();
-        for (int i = 0; i < sources.size(); i++) {
+        for (Map.Entry<String, MangaSource> entry : sources.entrySet()) {
             try {
                 JSONObject jsonObject = new JSONObject();
                 //noinspection SpellCheckingInspection
-                jsonObject.put("gname", sources.get(i).title);
-                jsonObject.put("gid", String.valueOf(i));
+                jsonObject.put("gname", entry.getValue().title);
+                jsonObject.put("gid", entry.getKey());
                 jsonArray.put(jsonObject);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
         return jsonArray.toString();
+    }
+
+    public static String filenameOfMangaSource(MangaSource mangaSource) {
+        for (Map.Entry<String, MangaSource> entry : sources.entrySet()) {
+            if (entry.getValue() == mangaSource) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

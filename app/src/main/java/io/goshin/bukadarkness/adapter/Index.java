@@ -1,13 +1,13 @@
 package io.goshin.bukadarkness.adapter;
 
 
+import android.content.Context;
 import android.support.v4.util.Pair;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-
+import io.goshin.bukadarkness.database.KVMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
 public class Index {
@@ -16,9 +16,14 @@ public class Index {
     public static final String PIC_PREFIX = "986";
     public static final String BASE_PREFIX = "buka-darkness-pic";
     /* <pid, url> */
-    public static HashMap<String, String> pIDMap = new HashMap<>();
+    public static KVMapDatabase pIDMap;
     /* <url, referrer> */
-    public static HashMap<String, String> imageReferrerMap = new HashMap<>();
+    public static KVMapDatabase imageReferrerMap;
+
+    public static void initDatabase(Context context) {
+        pIDMap = new KVMapDatabase(context, "pic_map");
+        imageReferrerMap = new KVMapDatabase(context, "image_referrer");
+    }
 
     public Index(String mid, String cid) {
         this.mid = mid;
@@ -26,7 +31,7 @@ public class Index {
     }
 
     public Boolean match() throws Throwable {
-        return mid.startsWith(Items.MANGA_PREFIX);
+        return !Items.mangaMapDatabase.getUrl(mid).equals("");
     }
 
     public String getClip() throws Throwable {
@@ -37,38 +42,34 @@ public class Index {
 
         JSONObject params = new JSONObject();
         params.put("f", "get_index");
-        Pair<String, String> pair = Detail.ClipIDMap.get(mid + cid);
+        Pair<String, String> pair = Detail.chapterMapDatabase.get(mid, cid);
         params.put("fp", pair.first);
         params.put("url", pair.second);
 
         JSONArray picList = new JSONArray(Client.request(params));
-        for (int i = 0; i < picList.length(); i++) {
-            String url = Utils.getPathFromUrl(picList.getString(i));
-            JSONObject clip = new JSONObject("{\n" +
-                    "    \"r\": 772,\n" +
-                    "    \"b\": 1070,\n" +
-                    "    \"pic\": 0,\n" +
-                    "    \"l\": 0,\n" +
-                    "    \"t\": 0\n" +
-                    "}");
-            clip.put("pic", i);
+        synchronized (this) {
+            pIDMap.putPrepare();
+            imageReferrerMap.putPrepare();
+            for (int i = 0; i < picList.length(); i++) {
+                String url = Utils.getEncodedUrl(picList.getString(i));
+                JSONObject clip = new JSONObject("{\n" +
+                        "    \"r\": 772,\n" +
+                        "    \"b\": 1070,\n" +
+                        "    \"pic\": 0,\n" +
+                        "    \"l\": 0,\n" +
+                        "    \"t\": 0\n" +
+                        "}");
+                clip.put("pic", i);
 
-            /*
-            HttpURLConnection imageConnection = (HttpURLConnection) new URL(url).openConnection();
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeStream(imageConnection.getInputStream(), null, options);
-            clip.put("r", options.outWidth);
-            clip.put("b", options.outHeight);
-            imageConnection.disconnect();
-            */
+                String picID = PIC_PREFIX + mid + Math.abs(url.hashCode());
+                pIDMap.put(picID, url);
+                imageReferrerMap.put(url, Items.mangaMapDatabase.getUrl(mid));
 
-            String picID = PIC_PREFIX + mid + Math.abs(url.hashCode());
-            pIDMap.put(picID, url);
-            imageReferrerMap.put(url, Items.mangaIDMap.get(mid).second);
-
-            result.getJSONArray("pics").put(picID + url.substring(url.lastIndexOf(".")));
-            result.getJSONArray("clip").put(clip);
+                result.getJSONArray("pics").put(picID);
+                result.getJSONArray("clip").put(clip);
+            }
+            pIDMap.commit();
+            imageReferrerMap.commit();
         }
 
         return result.toString();
@@ -80,7 +81,7 @@ public class Index {
     }
 
     public static String getRealPicUrl(String fakeUrl) {
-        String pid = fakeUrl.substring(fakeUrl.lastIndexOf("/") + 1, fakeUrl.lastIndexOf("."));
+        String pid = fakeUrl.substring(fakeUrl.lastIndexOf("/") + 1);
         String result = pIDMap.get(pid);
         return result == null ? "" : result;
     }

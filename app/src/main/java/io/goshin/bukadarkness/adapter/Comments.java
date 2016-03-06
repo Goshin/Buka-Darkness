@@ -4,10 +4,10 @@ import org.json.JSONObject;
 
 import io.goshin.bukadarkness.MangaAdapter;
 
-public class Comments implements MangaAdapter {
+public class Comments extends MangaAdapter {
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
-        return params.optString("mid").startsWith(Items.MANGA_PREFIX);
+        return !Items.mangaMapDatabase.getUrl(params.optString("mid")).equals("");
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -16,17 +16,22 @@ public class Comments implements MangaAdapter {
         if (originalResult != null) {
             return originalResult.toString();
         }
+
+        if (!params.optString("text").equals("")) {
+            throw new Exception("评论功能不考虑予以实现");
+        }
+
         return "{\n" +
                 "    \"ret\": 0,\n" +
                 "    \"postrestrict\": 1,\n" +
                 "    \"ctt\": [\n" +
                 "        {\n" +
-                "            \"disid\": \"20525055\",\n" +
-                "            \"userid\": \"5174424\",\n" +
+                "            \"disid\": \"99999999\",\n" +
+                "            \"userid\": \"9999999\",\n" +
                 "            \"t\": \"2016-02-03 15:51:34\",\n" +
                 "            \"tlast\": \"2016-02-03 15:51:34\",\n" +
                 "            \"s\": \"0\",\n" +
-                "            \"text\": \"评论功能可能会在下一个版本中实现\",\n" +
+                "            \"text\": \"评论功能不考虑予以实现\",\n" +
                 "            \"mid\": \"" + params.optString("mid") + "\",\n" +
                 "            \"rc\": \"0\",\n" +
                 "            \"unread\": \"0\",\n" +
@@ -38,7 +43,7 @@ public class Comments implements MangaAdapter {
                 "            \"gender\": \"1\",\n" +
                 "            \"v\": \"\",\n" +
                 "            \"tdiff\": 1869,\n" +
-                "            \"timeintext\": \"31分钟前\"\n" +
+                "            \"timeintext\": \"0分钟前\"\n" +
                 "        }\n" +
                 "    ],\n" +
                 "    \"hasnext\": 0\n" +

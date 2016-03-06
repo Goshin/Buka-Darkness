@@ -47,7 +47,7 @@ public class MangaSource extends SdSource {
     public void getHots(final Callback callback) {
         SdNode hots = (SdNode) home.get("hots");
         final DataModel hotsViewModel = new DataModel();
-        getNodeViewModel(hotsViewModel, false, 1, hots, new SdSourceCallback() {
+        getNodeViewModel(hotsViewModel, true, 1, hots, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
                 callback.run(hotsViewModel.getJsonData(), MangaSource.this);
@@ -58,7 +58,7 @@ public class MangaSource extends SdSource {
     public void search(String keyword, final Callback callback) {
         SdNode search = (SdNode) main.get("search");
         final DataModel searchViewModel = new DataModel();
-        getNodeViewModel(searchViewModel, false, keyword, 1, search, new SdSourceCallback() {
+        getNodeViewModel(searchViewModel, true, keyword, 1, search, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
                 callback.run(searchViewModel.getJsonData(), MangaSource.this);
@@ -69,7 +69,7 @@ public class MangaSource extends SdSource {
     public void getBookDetail(String url, final Callback callback) {
         SdNode book = (SdNode) main.get("book");
         final DataModel dataModel = new DataModel();
-        getNodeViewModel(dataModel, false, url, book, new SdSourceCallback() {
+        getNodeViewModel(dataModel, true, url, book, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
                 callback.run(dataModel.getJsonData());
@@ -80,7 +80,7 @@ public class MangaSource extends SdSource {
     public void getSection(String url, final Callback callback) {
         SdNode section = (SdNode) main.get("section");
         final DataModel dataModel = new DataModel();
-        getNodeViewModel(dataModel, false, url, section, new SdSourceCallback() {
+        getNodeViewModel(dataModel, true, url, section, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
                 callback.run(dataModel.getJsonData());

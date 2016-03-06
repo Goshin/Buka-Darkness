@@ -61,10 +61,10 @@ public class Utils {
         return String.format("%0" + String.valueOf(bits) + "d", Math.abs(o.hashCode())).substring(0, bits);
     }
 
-    public static String getPathFromUrl(String o) {
+    public static String getEncodedUrl(String o) {
         try {
             URL url = new URL(o);
-            return new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), null, null).toASCIIString();
+            return new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), url.getQuery(), null).toASCIIString();
         } catch (Exception e) {
             e.printStackTrace();
         }

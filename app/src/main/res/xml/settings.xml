@@ -10,10 +10,9 @@
 
     <PreferenceCategory android:title="版本">
         <Preference
-            android:summary="收藏，历史和评论功能暂不可用，可能会在后续版本实现。"
-            android:title="Beta 0.3 试验性版本" />
+            android:title="Beta 0.4 试验性版本" />
         <Preference
-            android:summary="http://sited.noear.org/\n点击访问插件引擎主页"
+            android:summary="http://sited.noear.org/"
             android:title="插件引擎: SiteD v13">
             <intent
                 android:action="android.intent.action.VIEW"

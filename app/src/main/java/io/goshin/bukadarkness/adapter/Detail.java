@@ -1,23 +1,23 @@
 package io.goshin.bukadarkness.adapter;
 
 
-import android.support.v4.util.Pair;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-
 import io.goshin.bukadarkness.MangaAdapter;
+import io.goshin.bukadarkness.database.ChapterMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
-public class Detail implements MangaAdapter {
-    /* <cid, <sourceID, url>> */
-    public static HashMap<String, Pair<String, String>> ClipIDMap = new HashMap<>();
+public class Detail extends MangaAdapter {
+    public static ChapterMapDatabase chapterMapDatabase;
+
+    public static void initDatabase() {
+        chapterMapDatabase = new ChapterMapDatabase(context);
+    }
 
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
-        return params.optString("mid").startsWith(Items.MANGA_PREFIX);
+        return !Items.mangaMapDatabase.getUrl(params.optString("mid")).equals("");
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -27,13 +27,12 @@ public class Detail implements MangaAdapter {
             return originalResult.toString();
         }
 
-        Pair<String, String> pair = Items.mangaIDMap.get(params.optString("mid"));
-        String sourceID = pair.first;
-        String url = pair.second;
+        String sourceFilename = Items.mangaMapDatabase.getFilename(params.optString("mid"));
+        String url = Items.mangaMapDatabase.getUrl(params.optString("mid"));
         if (url == null) {
             return "{ret:-1}";
         }
-        params.put("fp", sourceID);
+        params.put("fp", sourceFilename);
         params.put("url", url);
 
         JSONObject result = new JSONObject("{\n" +
@@ -95,11 +94,17 @@ public class Detail implements MangaAdapter {
                 "}");
 
         JSONObject response = new JSONObject(Client.request(params));
-        String logo = Utils.getPathFromUrl(response.optString("logo"));
+        String logo = Utils.getEncodedUrl(response.optString("logo"));
         String logoHash = params.optString("mid") + Math.abs(logo.hashCode());
         String fakeCoverDir = Items.COVER_PREFIX + logoHash + "/";
+
+        Items.coverMap.putPrepare();
+        Index.imageReferrerMap.putPrepare();
         Items.coverMap.put(logoHash, logo);
-        Index.imageReferrerMap.put(logo, Items.mangaIDMap.get(params.optString("mid")).second);
+        Index.imageReferrerMap.put(logo, url);
+        Items.coverMap.commit();
+        Index.imageReferrerMap.commit();
+
         result.put("logo", fakeCoverDir + "1.jpg");
         result.put("logos", fakeCoverDir + "1.jpg");
         result.put("logodir", fakeCoverDir);
@@ -114,33 +119,37 @@ public class Detail implements MangaAdapter {
 
         JSONArray sections = response.getJSONArray("sections");
         int length = sections.length();
-        for (int i = 0; i < length; i++) {
-            JSONObject section = sections.getJSONObject(i);
-            JSONObject link = new JSONObject("{\n" +
-                    "    \"cid\": \"65542\",\n" +
-                    "    \"idx\": \"6\",\n" +
-                    "    \"type\": \"0\",\n" +
-                    "    \"title\": \"第六期\",\n" +
-                    "    \"size\": \"8888\",\n" +
-                    "    \"ressupport\": \"7\"\n" +
-                    "}");
-            JSONObject res = new JSONObject("{\n" +
-                    "    \"cid\": \"65537\",\n" +
-                    "    \"restype\": \"1\",\n" +
-                    "    \"csize\": \"8888\"\n" +
-                    "}");
-            link.put("idx", String.valueOf(length - i));
-            link.put("title", section.optString("name"));
+        synchronized (this) {
+            chapterMapDatabase.putPrepare();
+            for (int i = 0; i < length; i++) {
+                JSONObject section = sections.getJSONObject(i);
+                JSONObject link = new JSONObject("{\n" +
+                        "    \"cid\": \"65542\",\n" +
+                        "    \"idx\": \"6\",\n" +
+                        "    \"type\": \"0\",\n" +
+                        "    \"title\": \"第六期\",\n" +
+                        "    \"size\": \"8888\",\n" +
+                        "    \"ressupport\": \"7\"\n" +
+                        "}");
+                JSONObject res = new JSONObject("{\n" +
+                        "    \"cid\": \"65537\",\n" +
+                        "    \"restype\": \"1\",\n" +
+                        "    \"csize\": \"8888\"\n" +
+                        "}");
+                link.put("idx", String.valueOf(length - i));
+                link.put("title", section.optString("name"));
 
-            String clipID = String.valueOf(65536 + length - i);
-            ClipIDMap.put(params.optString("mid") + clipID, new Pair<>(params.optString("fp"), section.optString("url")));
-            link.put("cid", clipID);
-            res.put("cid", clipID);
+                String chapterID = String.valueOf(65536 + length - i);
+                chapterMapDatabase.put(Long.parseLong(params.optString("mid")), Long.parseLong(chapterID), params.optString("fp"), section.optString("url"));
+                link.put("cid", chapterID);
+                res.put("cid", chapterID);
 
-            result.put("lastup", section.optString("name"));
-            result.put("lastupcid", clipID);
-            result.getJSONArray("links").put(link);
-            result.getJSONArray("res").put(res);
+                result.put("lastup", section.optString("name"));
+                result.put("lastupcid", chapterID);
+                result.getJSONArray("links").put(link);
+                result.getJSONArray("res").put(res);
+            }
+            chapterMapDatabase.commit();
         }
 
         return result.toString();

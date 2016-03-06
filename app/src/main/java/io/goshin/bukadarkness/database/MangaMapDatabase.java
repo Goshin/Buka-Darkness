@@ -60,7 +60,7 @@ public class MangaMapDatabase extends DatabaseBase {
 
     public long getID(String filename, String url) {
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.query(TABLE_NAME, null, "url=?", new String[]{url}, null, null, null);
+        Cursor cursor = db.query(TABLE_NAME, null, "url=? and filename=?", new String[]{url, filename}, null, null, null);
         if (cursor.moveToNext()) {
             long result = cursor.getInt(cursor.getColumnIndex("_id"));
             cursor.close();

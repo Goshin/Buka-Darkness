@@ -6,11 +6,15 @@
             android:key="verbose"
             android:summary="打开选项后会将运行过程中的详细信息写入到 Xposed 日志中。"
             android:title="记录日志" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="popup_bars"
+            android:summary="在阅读界面，弹出阅读菜单的同时暂时取消沉浸模式（需要在布卡里启用『隐藏虚拟按键』）"
+            android:title="虚拟按键随阅读菜单弹出" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="版本">
-        <Preference
-            android:title="Beta 0.4 试验性版本" />
+        <Preference android:title="Beta 0.5 试验性版本" />
         <Preference
             android:summary="http://sited.noear.org/"
             android:title="插件引擎: SiteD v13">

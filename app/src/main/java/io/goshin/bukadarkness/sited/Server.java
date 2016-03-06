@@ -1,5 +1,6 @@
 package io.goshin.bukadarkness.sited;
 
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Bundle;
@@ -17,9 +18,13 @@ import org.noear.sited.SdNodeFactory;
 import org.noear.sited.SdSource;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.ref.WeakReference;
 import java.net.ServerSocket;
@@ -34,7 +39,21 @@ public class Server extends Service {
     private ProcessHandler processHandler;
     private ServerSocket serverSocket;
 
-    public Server() {
+    private static PrintWriter logWriter = null;
+
+    private static synchronized void log(String text) {
+        if (logWriter != null) {
+            logWriter.println(text);
+            logWriter.flush();
+        }
+    }
+
+    private static void log(Throwable t) {
+        if (logWriter != null) {
+            StringWriter stringWriter = new StringWriter();
+            t.printStackTrace(new PrintWriter(stringWriter));
+            log(stringWriter.toString());
+        }
     }
 
     @Override
@@ -45,8 +64,18 @@ public class Server extends Service {
     /**
      * Called by the system when the service is first created.  Do not call this method directly.
      */
+    @SuppressLint("WorldReadableFiles")
     @Override
     public void onCreate() {
+        //noinspection deprecation
+        if (getSharedPreferences("pref", MODE_WORLD_READABLE).getBoolean("verbose", false)) {
+            try {
+                logWriter = new PrintWriter(new FileWriter(getFileStreamPath("error.log"), false));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         processHandler = new ProcessHandler(this);
         SdApi.tryInit(new SdNodeFactory(), new SdLogListener() {
             @Override
@@ -65,10 +94,12 @@ public class Server extends Service {
                             new InputProcessThread(clientSocket).start();
                         } catch (Exception e) {
                             e.printStackTrace();
+                            log(e);
                         }
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
+                    log(e);
                 }
             }
         }).start();
@@ -123,6 +154,7 @@ public class Server extends Service {
                         processHandler.sendMessage(message);
                     } catch (Exception e) {
                         e.printStackTrace();
+                        log(e);
                     }
                 }
             });
@@ -160,6 +192,7 @@ public class Server extends Service {
                             clientSocket.close();
                         } catch (Exception e) {
                             e.printStackTrace();
+                            log(e);
                         }
                     }
                 };
@@ -189,6 +222,7 @@ public class Server extends Service {
                                     sendResponseCallback.run(jsonArray.toString());
                                 } catch (JSONException e) {
                                     e.printStackTrace();
+                                    log(e);
                                     sendResponseCallback.run("[]");
                                 }
                             }
@@ -213,6 +247,7 @@ public class Server extends Service {
                                     }
                                 } catch (JSONException e) {
                                     e.printStackTrace();
+                                    log(e);
                                 }
                                 if (sourceCount-- == 1) {
                                     sendResponseCallback.run(searchResult.toString());
@@ -246,6 +281,7 @@ public class Server extends Service {
                 }
             } catch (Throwable e) {
                 e.printStackTrace();
+                log(e);
             }
 
         }

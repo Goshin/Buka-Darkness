@@ -232,6 +232,10 @@ public class SourceListFragment extends Fragment {
                         return;
                     }
                     String filename = mangaSource.url_md5;
+                    boolean newSource = true;
+                    if (activity.getFileStreamPath(filename).exists()) {
+                        newSource = false;
+                    }
                     writeToFile(filename, xml);
                     new SourceSettingsDatabase(activity).add(filename);
                     Snackbar.make(view.findViewById(R.id.recyclerView),
@@ -242,7 +246,9 @@ public class SourceListFragment extends Fragment {
                     map.put("title", mangaSource.title);
                     map.put("author", mangaSource.getAuthor());
                     map.put("intro", mangaSource.getIntro());
-                    sourceCardListAdapter.addData(0, map);
+                    if (newSource) {
+                        sourceCardListAdapter.addData(0, map);
+                    }
                 } catch (Exception e) {
                     onError.run(e.toString());
                     e.printStackTrace();

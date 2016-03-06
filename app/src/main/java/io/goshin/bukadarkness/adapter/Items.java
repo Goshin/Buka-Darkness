@@ -75,10 +75,11 @@ public class Items implements MangaAdapter {
             mangaIDMap.put(mangaID, new Pair<>(data.optString("sourceID"), data.optString("url")));
             book.put("mid", mangaID);
 
-            String logo = data.optString("logo");
+            String logo = Utils.getPathFromUrl(data.optString("logo"));
             String logoHash = mangaID + Math.abs(logo.hashCode());
             String fakeCoverDir = COVER_PREFIX + logoHash + "/";
             coverMap.put(logoHash, logo);
+            Index.imageReferrerMap.put(logo, data.optString("url"));
             book.put("logo", fakeCoverDir + "1.jpg");
             book.put("logos", fakeCoverDir + "1.jpg");
             book.put("logodir", fakeCoverDir);

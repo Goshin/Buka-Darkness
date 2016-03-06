@@ -150,10 +150,14 @@ public class Server extends Service {
                     @Override
                     public void run(Object... objects) {
                         String result = (String) objects[0];
+                        if (result == null) {
+                            result = "";
+                        }
                         try {
                             Writer out = new OutputStreamWriter(clientSocket.getOutputStream(), "utf-8");
                             out.write(URLEncoder.encode(result, "utf-8") + "\n");
                             out.flush();
+                            clientSocket.close();
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -179,7 +183,7 @@ public class Server extends Service {
                         mangaSource.getHots(new MangaSource.Callback() {
                             @Override
                             public void run(Object... objects) {
-                                String result = (String) objects[0];
+                                String result = objects[0] == null ? "" : (String) objects[0];
                                 MangaSource currentMangaSource = (MangaSource) objects[1];
                                 try {
                                     JSONArray jsonArray = new JSONArray(result);
@@ -191,6 +195,7 @@ public class Server extends Service {
                                     sendResponseCallback.run(jsonArray.toString());
                                 } catch (JSONException e) {
                                     e.printStackTrace();
+                                    sendResponseCallback.run("[]");
                                 }
                             }
                         });
@@ -202,7 +207,7 @@ public class Server extends Service {
 
                             @Override
                             public void run(Object... objects) {
-                                String result = (String) objects[0];
+                                String result = objects[0] == null ? "" : (String) objects[0];
                                 MangaSource currentMangaSource = (MangaSource) objects[1];
                                 try {
                                     JSONArray jsonArray = new JSONArray(result);

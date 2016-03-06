@@ -2,12 +2,13 @@ package io.goshin.bukadarkness.adapter;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.net.URL;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class Utils {
-    private static byte[] indexKey = null;
 
     public static ByteArrayInputStream indexEncode(String clip, String resourceBaseList, int mangaID, int clipID) throws Throwable {
         ByteArrayOutputStream result = new ByteArrayOutputStream();
@@ -23,8 +24,8 @@ public class Utils {
         zipOutputStream.close();
 
         byte[] clipBytes = clipOutputStream.toByteArray();
-        generateKey(mangaID, clipID);
-        xor(clipBytes);
+        byte[] key = generateKey(mangaID, clipID);
+        xor(clipBytes, key);
 
         result.write(String.format("%08x", clipBytes.length).getBytes("US-ASCII"));
         result.write(clipBytes);
@@ -36,13 +37,13 @@ public class Utils {
         return new ByteArrayInputStream(result.toByteArray());
     }
 
-    private static void xor(byte[] source) {
+    private static void xor(byte[] source, byte[] key) {
         for (int i = 4; i < source.length; i++) {
-            source[i] = ((byte) (source[i] ^ indexKey[((i - 4) % 8)]));
+            source[i] = ((byte) (source[i] ^ key[((i - 4) % 8)]));
         }
     }
 
-    private static void generateKey(int mangaID, int clipID) {
+    private static byte[] generateKey(int mangaID, int clipID) {
         byte[] key = new byte[8];
         key[0] = ((byte) clipID);
         key[1] = ((byte) (clipID >> 8));
@@ -52,11 +53,21 @@ public class Utils {
         key[5] = ((byte) (mangaID >> 8));
         key[6] = ((byte) (mangaID >> 16));
         key[7] = ((byte) (mangaID >> 24));
-        Utils.indexKey = key;
+        return key;
     }
 
     public static String fixedBitsHash(String o) {
         int bits = 4;
         return String.format("%0" + String.valueOf(bits) + "d", Math.abs(o.hashCode())).substring(0, bits);
+    }
+
+    public static String getPathFromUrl(String o) {
+        try {
+            URL url = new URL(o);
+            return new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), null, null).toASCIIString();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return o;
     }
 }

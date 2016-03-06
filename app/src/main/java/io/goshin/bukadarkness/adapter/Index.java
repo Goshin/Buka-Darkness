@@ -17,6 +17,8 @@ public class Index {
     public static final String BASE_PREFIX = "buka-darkness-pic";
     /* <pid, url> */
     public static HashMap<String, String> pIDMap = new HashMap<>();
+    /* <url, referrer> */
+    public static HashMap<String, String> imageReferrerMap = new HashMap<>();
 
     public Index(String mid, String cid) {
         this.mid = mid;
@@ -41,7 +43,7 @@ public class Index {
 
         JSONArray picList = new JSONArray(Client.request(params));
         for (int i = 0; i < picList.length(); i++) {
-            String url = picList.getString(i);
+            String url = Utils.getPathFromUrl(picList.getString(i));
             JSONObject clip = new JSONObject("{\n" +
                     "    \"r\": 772,\n" +
                     "    \"b\": 1070,\n" +
@@ -63,6 +65,7 @@ public class Index {
 
             String picID = PIC_PREFIX + mid + Math.abs(url.hashCode());
             pIDMap.put(picID, url);
+            imageReferrerMap.put(url, Items.mangaIDMap.get(mid).second);
 
             result.getJSONArray("pics").put(picID + url.substring(url.lastIndexOf(".")));
             result.getJSONArray("clip").put(clip);

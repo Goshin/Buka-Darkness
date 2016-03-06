@@ -95,10 +95,11 @@ public class Detail implements MangaAdapter {
                 "}");
 
         JSONObject response = new JSONObject(Client.request(params));
-        String logo = response.optString("logo");
+        String logo = Utils.getPathFromUrl(response.optString("logo"));
         String logoHash = params.optString("mid") + Math.abs(logo.hashCode());
         String fakeCoverDir = Items.COVER_PREFIX + logoHash + "/";
         Items.coverMap.put(logoHash, logo);
+        Index.imageReferrerMap.put(logo, Items.mangaIDMap.get(params.optString("mid")).second);
         result.put("logo", fakeCoverDir + "1.jpg");
         result.put("logos", fakeCoverDir + "1.jpg");
         result.put("logodir", fakeCoverDir);

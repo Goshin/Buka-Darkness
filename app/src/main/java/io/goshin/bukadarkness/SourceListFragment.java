@@ -6,6 +6,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
@@ -67,69 +69,86 @@ public class SourceListFragment extends Fragment {
     }
 
     private void setUpRecyclerView() {
-        RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.recyclerView);
+        final RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
         LinearLayoutManager layoutManager = new LinearLayoutManager(activity);
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setItemAnimator(new DefaultItemAnimator());
 
-        ArrayList<HashMap<String, String>> list = new ArrayList<>();
-        String[] fileList = activity.fileList();
-        for (String filename : fileList) {
-            try {
-                FileInputStream fileInputStream = activity.openFileInput(filename);
-                byte[] buffer = new byte[fileInputStream.available()];
-                if (fileInputStream.read(buffer) == -1) {
-                    continue;
+        final Handler handler = new Handler();
+        final ProgressDialog progressDialog = new ProgressDialog(activity);
+        progressDialog.setTitle(activity.getString(R.string.loading));
+        progressDialog.setMessage(activity.getString(R.string.loading_source));
+        progressDialog.show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                final ArrayList<HashMap<String, String>> list = new ArrayList<>();
+                String[] fileList = activity.fileList();
+                for (String filename : fileList) {
+                    try {
+                        FileInputStream fileInputStream = activity.openFileInput(filename);
+                        byte[] buffer = new byte[fileInputStream.available()];
+                        if (fileInputStream.read(buffer) == -1) {
+                            continue;
+                        }
+                        String xml = new String(buffer);
+                        fileInputStream.close();
+
+                        MangaSource mangaSource = new MangaSource(activity.getApplication(), xml);
+                        HashMap<String, String> map = new HashMap<>();
+                        map.put("filename", filename);
+                        map.put("title", mangaSource.title);
+                        map.put("author", mangaSource.getAuthor());
+                        map.put("intro", mangaSource.getIntro());
+
+                        list.add(map);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
-                String xml = new String(buffer);
-                fileInputStream.close();
 
-                MangaSource mangaSource = new MangaSource(activity.getApplication(), xml);
-                HashMap<String, String> map = new HashMap<>();
-                map.put("filename", filename);
-                map.put("title", mangaSource.title);
-                map.put("author", mangaSource.getAuthor());
-                map.put("intro", mangaSource.getIntro());
-
-                list.add(map);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        sourceCardListAdapter = new SourceCardListAdapter(list);
-        sourceCardListAdapter.setOnItemClickListener(new OnItemClickListener() {
-            @Override
-            public void onItemClick(View view, int position) {
-
-            }
-
-            @Override
-            public void onItemLongClick(final View view, final int position) {
-                final android.support.v7.app.AlertDialog.Builder alertDialog = new android.support.v7.app.AlertDialog.Builder(getActivity());
-                alertDialog
-                        .setMessage(activity.getString(R.string.delete_source))
-                        .setNegativeButton(activity.getString(R.string.cancel), new DialogInterface.OnClickListener() {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        sourceCardListAdapter = new SourceCardListAdapter(list);
+                        sourceCardListAdapter.setOnItemClickListener(new OnItemClickListener() {
                             @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
+                            public void onItemClick(View view, int position) {
+
                             }
-                        })
-                        .setPositiveButton(activity.getString(R.string.ok), new DialogInterface.OnClickListener() {
+
                             @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
-                                activity.deleteFile(filename);
-                                new SourceDatabase(activity).delete(filename);
-                                sourceCardListAdapter.removeData(position);
+                            public void onItemLongClick(final View view, final int position) {
+                                final android.support.v7.app.AlertDialog.Builder alertDialog = new android.support.v7.app.AlertDialog.Builder(getActivity());
+                                alertDialog
+                                        .setMessage(activity.getString(R.string.delete_source))
+                                        .setNegativeButton(activity.getString(R.string.cancel), new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                dialog.dismiss();
+                                            }
+                                        })
+                                        .setPositiveButton(activity.getString(R.string.ok), new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
+                                                activity.deleteFile(filename);
+                                                new SourceDatabase(activity).delete(filename);
+                                                sourceCardListAdapter.removeData(position);
+                                            }
+                                        })
+                                        .setTitle("")
+                                        .show();
                             }
-                        })
-                        .setTitle("")
-                        .show();
+                        });
+                        recyclerView.setAdapter(sourceCardListAdapter);
+                        progressDialog.dismiss();
+                    }
+                });
             }
-        });
-        recyclerView.setAdapter(sourceCardListAdapter);
+        }).start();
     }
 
     public void tryInstallSource(Intent intent) {

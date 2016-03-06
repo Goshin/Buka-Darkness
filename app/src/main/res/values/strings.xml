@@ -3,7 +3,7 @@
 
     <string name="addSourceTips">请输入 多多猫 SiteD 源插件的 URL</string>
     <string name="Sources">源插件</string>
-    <string name="about">关于</string>
+    <string name="settings">设置</string>
     <string name="add_source">添加源</string>
     <string name="cancel">取消</string>
     <string name="ok">确定</string>

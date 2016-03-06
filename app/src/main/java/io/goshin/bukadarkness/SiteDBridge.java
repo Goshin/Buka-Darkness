@@ -28,7 +28,9 @@ public class SiteDBridge {
             try {
                 FileInputStream fileInputStream = context.openFileInput(filename);
                 byte[] buffer = new byte[fileInputStream.available()];
-                fileInputStream.read(buffer);
+                if (fileInputStream.read(buffer) == -1) {
+                    continue;
+                }
                 String xml = new String(buffer);
                 fileInputStream.close();
 
@@ -46,6 +48,7 @@ public class SiteDBridge {
         for (int i = 0; i < sources.size(); i++) {
             try {
                 JSONObject jsonObject = new JSONObject();
+                //noinspection SpellCheckingInspection
                 jsonObject.put("gname", sources.get(i).title);
                 jsonObject.put("gid", String.valueOf(i));
                 jsonArray.put(jsonObject);

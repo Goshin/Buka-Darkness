@@ -9,6 +9,7 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.preference.PreferenceFragmentCompat;
+import android.support.v7.preference.PreferenceManager;
 import android.support.v7.widget.Toolbar;
 
 import java.util.ArrayList;
@@ -51,11 +52,8 @@ public class MainActivity extends AppCompatActivity {
         sourceFragment = new SourceListFragment();
         adapter.addFragment(sourceFragment, getString(R.string.Sources));
 
-        SettingsFragment aboutFragment = new SettingsFragment();
-        Bundle aboutBundle = new Bundle();
-        aboutBundle.putInt("xmlID", R.xml.about);
-        aboutFragment.setArguments(aboutBundle);
-        adapter.addFragment(aboutFragment, getString(R.string.about));
+        SettingsFragment settingsFragment = new SettingsFragment();
+        adapter.addFragment(settingsFragment, getString(R.string.settings));
 
         viewPager.setAdapter(adapter);
 
@@ -97,10 +95,12 @@ public class MainActivity extends AppCompatActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
 
+            PreferenceManager preferenceManager = getPreferenceManager();
+            preferenceManager.setSharedPreferencesName("pref");
+            //noinspection deprecation
+            preferenceManager.setSharedPreferencesMode(MODE_WORLD_READABLE);
             // Load the preferences from an XML resource
-            Bundle bundle = getArguments();
-            int xmlID = bundle.getInt("xmlID");
-            addPreferencesFromResource(xmlID);
+            addPreferencesFromResource(R.xml.settings);
         }
 
         @Override

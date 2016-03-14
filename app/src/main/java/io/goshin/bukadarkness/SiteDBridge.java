@@ -15,8 +15,9 @@ import io.goshin.bukadarkness.database.SourceSettingsDatabase;
 import io.goshin.bukadarkness.sited.MangaSource;
 
 public class SiteDBridge {
-    private static Application application;
     public static HashMap<String, MangaSource> sources = new HashMap<>();
+    public static HashMap<String, MangaSource> searchSources = new HashMap<>();
+    private static Application application;
 
     public static void setApplication(Application application) {
         SiteDBridge.application = application;
@@ -35,8 +36,12 @@ public class SiteDBridge {
                 String xml = new String(buffer);
                 fileInputStream.close();
 
-                if (new SourceSettingsDatabase(context).isEnabled(filename)) {
-                    sources.put(filename, new MangaSource(application, xml));
+                if (SourceSettingsDatabase.getInstance().isEnabled(filename)) {
+                    MangaSource mangaSource = new MangaSource(application, xml);
+                    sources.put(filename, mangaSource);
+                    if (SourceSettingsDatabase.getInstance().isSearchEnabled(filename)) {
+                        searchSources.put(filename, mangaSource);
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();

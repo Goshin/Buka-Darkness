@@ -15,3 +15,8 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+-keepattributes SourceFile,LineNumberTable
+
+-keepnames io.goshin.bukadarkness.** { *; }
+-keep class io.goshin.bukadarkness.** { public *; }

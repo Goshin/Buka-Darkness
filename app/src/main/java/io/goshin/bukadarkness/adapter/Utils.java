@@ -56,11 +56,6 @@ public class Utils {
         return key;
     }
 
-    public static String fixedBitsHash(String o) {
-        int bits = 4;
-        return String.format("%0" + String.valueOf(bits) + "d", Math.abs(o.hashCode())).substring(0, bits);
-    }
-
     public static String getEncodedUrl(String o) {
         try {
             URL url = new URL(o);

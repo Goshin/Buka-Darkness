@@ -1,7 +1,6 @@
 package io.goshin.bukadarkness.database;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
@@ -9,9 +8,17 @@ public class GroupMapDatabase extends DatabaseBase {
 
     public static final String TABLE_NAME = "group_map";
     public static final int PREFIX_START = 987001;
+    private static GroupMapDatabase instance = null;
 
-    public GroupMapDatabase(Context context) {
-        super(context, TABLE_NAME);
+    private GroupMapDatabase() {
+        super(TABLE_NAME);
+    }
+
+    public static GroupMapDatabase getInstance() {
+        if (instance == null && context != null) {
+            instance = new GroupMapDatabase();
+        }
+        return instance;
     }
 
     /**

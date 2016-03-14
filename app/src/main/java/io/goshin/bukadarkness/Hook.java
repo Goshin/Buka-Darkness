@@ -1,6 +1,5 @@
 package io.goshin.bukadarkness;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -51,7 +50,11 @@ import io.goshin.bukadarkness.adapter.Groups;
 import io.goshin.bukadarkness.adapter.Index;
 import io.goshin.bukadarkness.adapter.Items;
 import io.goshin.bukadarkness.adapter.Rate;
+import io.goshin.bukadarkness.adapter.SimpleInfo;
 import io.goshin.bukadarkness.adapter.Utils;
+import io.goshin.bukadarkness.database.CoverMapDatabase;
+import io.goshin.bukadarkness.database.DatabaseBase;
+import io.goshin.bukadarkness.database.ImageReferrerMapDatabase;
 
 @SuppressWarnings("deprecation")
 public class Hook implements IXposedHookLoadPackage {
@@ -99,6 +102,9 @@ public class Hook implements IXposedHookLoadPackage {
                 break;
             case "mangarate":
                 adapter = new Rate();
+                break;
+            case "getsimpleinfo":
+                adapter = new SimpleInfo();
                 break;
         }
         return adapter;
@@ -202,7 +208,7 @@ public class Hook implements IXposedHookLoadPackage {
                     param.args[0] = Index.getRealPicUrl(url);
                     log("Change URL to " + param.args[0]);
                 } else if (url.contains(Items.COVER_PREFIX)) {
-                    param.args[0] = Items.coverMap.get(url.substring(url.lastIndexOf("-") + 1, url.lastIndexOf("/")));
+                    param.args[0] = CoverMapDatabase.getInstance().get(url.substring(url.lastIndexOf("-") + 1, url.lastIndexOf("/")));
                     log("Change URL to " + param.args[0]);
                 }
             }
@@ -219,7 +225,7 @@ public class Hook implements IXposedHookLoadPackage {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 URLConnection urlConnection = (URLConnection) param.thisObject;
-                String referrer = Index.imageReferrerMap.get(urlConnection.getURL().toString());
+                String referrer = ImageReferrerMapDatabase.getInstance().get(urlConnection.getURL().toString());
                 if (referrer != null) {
                     urlConnection.setRequestProperty("Referer", referrer);
                     log("referrer: " + referrer);
@@ -276,11 +282,7 @@ public class Hook implements IXposedHookLoadPackage {
                 mainThreadHandler = new Handler();
                 activity = (Activity) param.thisObject;
                 activity.startService(serviceIntent);
-                MangaAdapter.setContext(activity);
-                Groups.initDatabase();
-                Items.initDatabase();
-                Detail.initDatabase();
-                Index.initDatabase(activity);
+                DatabaseBase.init(activity);
                 loadPreference();
             }
         };
@@ -290,11 +292,11 @@ public class Hook implements IXposedHookLoadPackage {
                 ((Activity) param.thisObject).stopService(serviceIntent);
             }
         };
-        XC_MethodHook onBackPressedHook = new XC_MethodHook() {
+        XC_MethodHook onMoveToBackHook = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 ((Activity) param.thisObject).finish();
-                param.setResult(null);
+                param.setResult(true);
             }
         };
 
@@ -317,12 +319,11 @@ public class Hook implements IXposedHookLoadPackage {
             }
         };
         XC_MethodHook hideReaderMenuHook = new XC_MethodHook() {
-            @TargetApi(Build.VERSION_CODES.KITKAT)
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 Window window = readerActivity.getWindow();
                 SharedPreferences preferences = readerActivity.getSharedPreferences(readerActivity.getPackageName() + "_preferences", Context.MODE_PRIVATE);
-                if (apiLevel >= 19 && popupBars && preferences.getBoolean("use_immersive_mode", false)) {
+                if (Build.VERSION.SDK_INT >= 19 && popupBars && preferences.getBoolean("use_immersive_mode", false)) {
                     window.getDecorView().setSystemUiVisibility(
                             View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -337,27 +338,20 @@ public class Hook implements IXposedHookLoadPackage {
             }
         };
 
-        if (loadPackageParam.packageName.toLowerCase().contains("hd")) {
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.hd.HDActivityMain", loadPackageParam.classLoader, "onCreate", Bundle.class, startServiceHook);
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.hd.HDActivityMain", loadPackageParam.classLoader, "onDestroy", stopServiceHook);
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.hd.HDActivityMain", loadPackageParam.classLoader, "onBackPressed", onBackPressedHook);
-
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.ActivityBukaReader", loadPackageParam.classLoader, "onCreate", Bundle.class, onReaderCreateHook);
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.ActivityBukaReader", loadPackageParam.classLoader, "onBackPressed", onBackPressedHook);
-
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.ViewReaderMenu", loadPackageParam.classLoader, "b", showReaderMenuHook);
-            XposedHelpers.findAndHookMethod("cn.ibuka.manga.hd.ViewReaderMenu", loadPackageParam.classLoader, "c", hideReaderMenuHook);
-        } else {
-            String packageName = loadPackageParam.packageName;
-            XposedHelpers.findAndHookMethod(packageName + ".ActivityMain", loadPackageParam.classLoader, "onCreate", Bundle.class, startServiceHook);
-            XposedHelpers.findAndHookMethod(packageName + ".ActivityMain", loadPackageParam.classLoader, "onDestroy", stopServiceHook);
-
-            XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "onCreate", Bundle.class, onReaderCreateHook);
-            XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "onBackPressed", onBackPressedHook);
-
-            XposedHelpers.findAndHookMethod(packageName + ".ViewReaderMenu", loadPackageParam.classLoader, "b", showReaderMenuHook);
-            XposedHelpers.findAndHookMethod(packageName + ".ViewReaderMenu", loadPackageParam.classLoader, "c", hideReaderMenuHook);
+        String packageName = loadPackageParam.packageName;
+        String mainActivityClassName = packageName + ".ActivityMain";
+        if (packageName.toLowerCase().contains("hd")) {
+            mainActivityClassName = packageName + ".hd.HDActivityMain";
         }
+        XposedHelpers.findAndHookMethod(mainActivityClassName, loadPackageParam.classLoader, "onCreate", Bundle.class, startServiceHook);
+        XposedHelpers.findAndHookMethod(mainActivityClassName, loadPackageParam.classLoader, "onDestroy", stopServiceHook);
+        XposedHelpers.findAndHookMethod(Activity.class, "moveTaskToBack", "boolean", onMoveToBackHook);
+
+        XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "onCreate", Bundle.class, onReaderCreateHook);
+        XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "onBackPressed", onMoveToBackHook);
+
+        XposedHelpers.findAndHookMethod(packageName + ".ViewReaderMenu", loadPackageParam.classLoader, "b", showReaderMenuHook);
+        XposedHelpers.findAndHookMethod(packageName + ".ViewReaderMenu", loadPackageParam.classLoader, "c", hideReaderMenuHook);
 
 
         XposedHelpers.findAndHookMethod("android.app.ApplicationPackageManager", loadPackageParam.classLoader, "getInstalledApplications", int.class, new XC_MethodHook() {
@@ -401,10 +395,15 @@ public class Hook implements IXposedHookLoadPackage {
     }
 
     private void toast(final String text) {
+        if (mainThreadHandler == null) {
+            return;
+        }
         mainThreadHandler.post(new Runnable() {
             @Override
             public void run() {
-                Toast.makeText(activity, text, Toast.LENGTH_LONG).show();
+                if (activity != null) {
+                    Toast.makeText(activity, text, Toast.LENGTH_LONG).show();
+                }
             }
         });
     }

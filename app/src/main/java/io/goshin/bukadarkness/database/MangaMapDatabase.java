@@ -1,16 +1,23 @@
 package io.goshin.bukadarkness.database;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 public class MangaMapDatabase extends DatabaseBase {
     public static final String TABLE_NAME = "manga_map";
     public static final int PREFIX_START = 9890001;
+    private static MangaMapDatabase instance = null;
 
-    public MangaMapDatabase(Context context) {
-        super(context, TABLE_NAME);
+    private MangaMapDatabase() {
+        super(TABLE_NAME);
+    }
+
+    public static MangaMapDatabase getInstance() {
+        if (instance == null && context != null) {
+            instance = new MangaMapDatabase();
+        }
+        return instance;
     }
 
     /**

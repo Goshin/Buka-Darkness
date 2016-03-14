@@ -3,11 +3,12 @@ package io.goshin.bukadarkness.adapter;
 import org.json.JSONObject;
 
 import io.goshin.bukadarkness.MangaAdapter;
+import io.goshin.bukadarkness.database.MangaMapDatabase;
 
 public class Rate extends MangaAdapter {
     @Override
     protected Boolean needRedirect(JSONObject params) throws Throwable {
-        return !Items.mangaMapDatabase.getUrl(params.optString("mid")).equals("");
+        return !MangaMapDatabase.getInstance().getUrl(params.optString("mid")).equals("");
     }
 
     @Override

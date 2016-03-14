@@ -1,7 +1,6 @@
 package io.goshin.bukadarkness.database;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.support.v4.util.Pair;
@@ -9,10 +8,18 @@ import android.support.v4.util.Pair;
 public class ChapterMapDatabase extends DatabaseBase {
 
     public static final String TABLE_NAME = "chapter_map";
+    private static ChapterMapDatabase instance = null;
     private SQLiteDatabase writableDatabase;
 
-    public ChapterMapDatabase(Context context) {
-        super(context, TABLE_NAME);
+    private ChapterMapDatabase() {
+        super(TABLE_NAME);
+    }
+
+    public static ChapterMapDatabase getInstance() {
+        if (instance == null && context != null) {
+            instance = new ChapterMapDatabase();
+        }
+        return instance;
     }
 
     /**

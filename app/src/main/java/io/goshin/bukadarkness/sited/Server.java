@@ -33,13 +33,13 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 
 import io.goshin.bukadarkness.SiteDBridge;
+import io.goshin.bukadarkness.database.DatabaseBase;
 
 public class Server extends Service {
     public static final int PORT = 2203;
+    private static PrintWriter logWriter = null;
     private ProcessHandler processHandler;
     private ServerSocket serverSocket;
-
-    private static PrintWriter logWriter = null;
 
     private static synchronized void log(String text) {
         if (logWriter != null) {
@@ -76,6 +76,7 @@ public class Server extends Service {
             }
         }
 
+        DatabaseBase.init(this);
         processHandler = new ProcessHandler(this);
         SdApi.tryInit(new SdNodeFactory(), new SdLogListener() {
             @Override
@@ -119,45 +120,6 @@ public class Server extends Service {
         } catch (Exception e) {
             e.printStackTrace();
             android.os.Process.killProcess(Process.myPid());
-        }
-    }
-
-    private class InputProcessThread extends Thread {
-        /**
-         * Constructs a new {@code Thread} with no {@code Runnable} object and a
-         * newly generated name. The new {@code Thread} will belong to the same
-         * {@code ThreadGroup} as the {@code Thread} calling this constructor.
-         *
-         * @see ThreadGroup
-         * @see Runnable
-         */
-        public InputProcessThread(final Socket clientSocket) {
-            super(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Reader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), "utf-8"));
-                        StringBuilder inputStringBuffer = new StringBuilder();
-                        int c;
-                        while ((c = in.read()) != -1) {
-                            if (((char) c) == '\n')
-                                break;
-                            inputStringBuffer.append((char) c);
-                        }
-                        final String params = URLDecoder.decode(inputStringBuffer.toString(), "utf-8");
-                        Bundle bundle = new Bundle();
-                        bundle.putString("params", params);
-                        Message message = new Message();
-                        message.setData(bundle);
-                        message.what = 1;
-                        message.obj = clientSocket;
-                        processHandler.sendMessage(message);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        log(e);
-                    }
-                }
-            });
         }
     }
 
@@ -230,7 +192,7 @@ public class Server extends Service {
                         break;
                     case "func_search":
                         MangaSource.Callback searchCallback = new MangaSource.Callback() {
-                            private int sourceCount = SiteDBridge.sources.size();
+                            private int sourceCount = SiteDBridge.searchSources.size();
                             private JSONArray searchResult = new JSONArray();
 
                             @Override
@@ -254,10 +216,10 @@ public class Server extends Service {
                                 }
                             }
                         };
-                        if (SiteDBridge.sources.size() == 0) {
+                        if (SiteDBridge.searchSources.size() == 0) {
                             sendResponseCallback.run("[]");
                         } else {
-                            for (MangaSource searchMangaSource : SiteDBridge.sources.values()) {
+                            for (MangaSource searchMangaSource : SiteDBridge.searchSources.values()) {
                                 searchMangaSource.search(params.optString("text"), searchCallback);
                             }
                         }
@@ -284,6 +246,45 @@ public class Server extends Service {
                 log(e);
             }
 
+        }
+    }
+
+    private class InputProcessThread extends Thread {
+        /**
+         * Constructs a new {@code Thread} with no {@code Runnable} object and a
+         * newly generated name. The new {@code Thread} will belong to the same
+         * {@code ThreadGroup} as the {@code Thread} calling this constructor.
+         *
+         * @see ThreadGroup
+         * @see Runnable
+         */
+        public InputProcessThread(final Socket clientSocket) {
+            super(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Reader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), "utf-8"));
+                        StringBuilder inputStringBuffer = new StringBuilder();
+                        int c;
+                        while ((c = in.read()) != -1) {
+                            if (((char) c) == '\n')
+                                break;
+                            inputStringBuffer.append((char) c);
+                        }
+                        final String params = URLDecoder.decode(inputStringBuffer.toString(), "utf-8");
+                        Bundle bundle = new Bundle();
+                        bundle.putString("params", params);
+                        Message message = new Message();
+                        message.setData(bundle);
+                        message.what = 1;
+                        message.obj = clientSocket;
+                        processHandler.sendMessage(message);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        log(e);
+                    }
+                }
+            });
         }
     }
 }

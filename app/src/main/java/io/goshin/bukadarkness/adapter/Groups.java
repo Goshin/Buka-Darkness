@@ -8,12 +8,6 @@ import io.goshin.bukadarkness.database.GroupMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
 public class Groups extends MangaAdapter {
-    public static GroupMapDatabase groupMapDatabase;
-
-    public static void initDatabase() {
-        groupMapDatabase = new GroupMapDatabase(context);
-    }
-
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
         return false;
@@ -30,7 +24,7 @@ public class Groups extends MangaAdapter {
                     "    \"gname\": \"ACG资讯\",\n" +
                     "    \"func\": \"1\",\n" +
                     "    \"param\": \"12011\",\n" +
-                    "    \"logo\": \"http://i12.tietuku.com/bb7bdf152701d147.png\",\n" +
+                    "    \"logo\": \"http://i.imgur.com/23L5FtE.png\",\n" +
                     "    \"cx\": \"0\",\n" +
                     "    \"cy\": \"0\",\n" +
                     "    \"locked\": \"0\",\n" +
@@ -38,7 +32,7 @@ public class Groups extends MangaAdapter {
                     "}");
 
             String name = data.optString("gname");
-            String gid = String.valueOf(groupMapDatabase.getID(data.optString("gid"), name));
+            String gid = String.valueOf(GroupMapDatabase.getInstance().getID(data.optString("gid"), name));
 
             group.put("gid", gid);
             group.put("gname", name);

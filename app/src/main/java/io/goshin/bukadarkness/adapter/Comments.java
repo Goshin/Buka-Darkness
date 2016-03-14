@@ -3,11 +3,12 @@ package io.goshin.bukadarkness.adapter;
 import org.json.JSONObject;
 
 import io.goshin.bukadarkness.MangaAdapter;
+import io.goshin.bukadarkness.database.MangaMapDatabase;
 
 public class Comments extends MangaAdapter {
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
-        return !Items.mangaMapDatabase.getUrl(params.optString("mid")).equals("");
+        return !MangaMapDatabase.getInstance().getUrl(params.optString("mid")).equals("");
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -17,13 +18,11 @@ public class Comments extends MangaAdapter {
             return originalResult.toString();
         }
 
-        if (!params.optString("text").equals("")) {
-            throw new Exception("评论功能不考虑予以实现");
-        }
-
         return "{\n" +
                 "    \"ret\": 0,\n" +
                 "    \"postrestrict\": 1,\n" +
+                "    \"locked\": 1,\n" +
+                "    \"lockedmsg\": \"本漫画已关闭评论\"," +
                 "    \"ctt\": [\n" +
                 "        {\n" +
                 "            \"disid\": \"99999999\",\n" +
@@ -39,7 +38,7 @@ public class Comments extends MangaAdapter {
                 "            \"top\": \"0\",\n" +
                 "            \"ustatus\": \"0\",\n" +
                 "            \"name\": \"Buka Darkness\",\n" +
-                "            \"head\": \"http://i11.tietuku.com/3847fcf0b726bad8.png\",\n" +
+                "            \"head\": \"http://i.imgur.com/iMjdpW4.png\",\n" +
                 "            \"gender\": \"1\",\n" +
                 "            \"v\": \"\",\n" +
                 "            \"tdiff\": 1869,\n" +

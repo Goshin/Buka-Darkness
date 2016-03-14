@@ -1,7 +1,6 @@
 package io.goshin.bukadarkness.database;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
@@ -9,8 +8,8 @@ public class KVMapDatabase extends DatabaseBase {
     private String tableName;
     private SQLiteDatabase writableDatabase;
 
-    public KVMapDatabase(Context context, String dbName) {
-        super(context, dbName);
+    public KVMapDatabase(String dbName) {
+        super(dbName);
         tableName = dbName;
     }
 

@@ -13,35 +13,65 @@
     <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
         android:padding="15dp">
 
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/textViewCardFilename"
+            <TextView
+                android:id="@+id/textViewCardFilename"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Large Text"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/textViewCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Large Text"
+                android:textAppearance="?android:attr/textAppearanceLarge" />
+
+            <TextView
+                android:id="@+id/textViewCardAuthor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="New Text" />
+
+            <TextView
+                android:id="@+id/textViewCardIntro"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="New Text" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Large Text"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:visibility="gone" />
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/textViewCardTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Large Text"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
+            <android.support.v7.widget.AppCompatCheckBox
+                android:id="@+id/checkboxSourceEnabled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal" />
 
-        <TextView
-            android:id="@+id/textViewCardAuthor"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="New Text" />
+            <android.support.v7.widget.AppCompatImageButton
+                android:id="@+id/imageButtonSourceMenu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:background="?android:selectableItemBackground"
+                android:padding="5dp"
+                android:src="@drawable/ic_more_vert_black_24dp"
+                android:tint="@color/colorAccent" />
+        </LinearLayout>
 
-        <TextView
-            android:id="@+id/textViewCardIntro"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="New Text" />
     </LinearLayout>
 </android.support.v7.widget.CardView>

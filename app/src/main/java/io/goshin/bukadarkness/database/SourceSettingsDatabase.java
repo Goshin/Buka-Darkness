@@ -1,16 +1,23 @@
 package io.goshin.bukadarkness.database;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 public class SourceSettingsDatabase extends DatabaseBase {
 
     public static final String TABLE_NAME = "source";
+    private static SourceSettingsDatabase instance = null;
 
-    public SourceSettingsDatabase(Context context) {
-        super(context, "");
+    private SourceSettingsDatabase() {
+        super("");
+    }
+
+    public static SourceSettingsDatabase getInstance() {
+        if (instance == null && context != null) {
+            instance = new SourceSettingsDatabase();
+        }
+        return instance;
     }
 
     /**
@@ -79,5 +86,32 @@ public class SourceSettingsDatabase extends DatabaseBase {
     public void delete(String filename) {
         SQLiteDatabase db = getWritableDatabase();
         db.delete(TABLE_NAME, "filename=?", new String[]{filename});
+    }
+
+    public void setEnabled(String filename, boolean enabled) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("enabled", enabled ? 1 : 0);
+        db.update(TABLE_NAME, contentValues, "filename=?", new String[]{filename});
+    }
+
+    public boolean isSearchEnabled(String filename) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(TABLE_NAME, null, "filename=?", new String[]{filename}, null, null, null);
+        boolean result = false;
+        if (cursor.moveToNext()) {
+            if (cursor.getInt(cursor.getColumnIndex("search_enabled")) == 1) {
+                result = true;
+            }
+        }
+        cursor.close();
+        return result;
+    }
+
+    public void setSearchEnabled(String filename, boolean enabled) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("search_enabled", enabled ? 1 : 0);
+        db.update(TABLE_NAME, contentValues, "filename=?", new String[]{filename});
     }
 }

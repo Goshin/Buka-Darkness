@@ -4,20 +4,22 @@ package io.goshin.bukadarkness.adapter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import io.goshin.bukadarkness.MangaAdapter;
 import io.goshin.bukadarkness.database.ChapterMapDatabase;
+import io.goshin.bukadarkness.database.CoverMapDatabase;
+import io.goshin.bukadarkness.database.ImageReferrerMapDatabase;
+import io.goshin.bukadarkness.database.MangaMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
 public class Detail extends MangaAdapter {
-    public static ChapterMapDatabase chapterMapDatabase;
-
-    public static void initDatabase() {
-        chapterMapDatabase = new ChapterMapDatabase(context);
-    }
-
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
-        return !Items.mangaMapDatabase.getUrl(params.optString("mid")).equals("");
+        return !MangaMapDatabase.getInstance().getUrl(params.optString("mid")).equals("");
     }
 
     @SuppressWarnings("SpellCheckingInspection")
@@ -27,9 +29,9 @@ public class Detail extends MangaAdapter {
             return originalResult.toString();
         }
 
-        String sourceFilename = Items.mangaMapDatabase.getFilename(params.optString("mid"));
-        String url = Items.mangaMapDatabase.getUrl(params.optString("mid"));
-        if (url == null) {
+        String sourceFilename = MangaMapDatabase.getInstance().getFilename(params.optString("mid"));
+        String url = MangaMapDatabase.getInstance().getUrl(params.optString("mid"));
+        if (url == null || url.equals("")) {
             return "{ret:-1}";
         }
         params.put("fp", sourceFilename);
@@ -98,12 +100,19 @@ public class Detail extends MangaAdapter {
         String logoHash = params.optString("mid") + Math.abs(logo.hashCode());
         String fakeCoverDir = Items.COVER_PREFIX + logoHash + "/";
 
-        Items.coverMap.putPrepare();
-        Index.imageReferrerMap.putPrepare();
-        Items.coverMap.put(logoHash, logo);
-        Index.imageReferrerMap.put(logo, url);
-        Items.coverMap.commit();
-        Index.imageReferrerMap.commit();
+        synchronized (CoverMapDatabase.getInstance()) {
+            CoverMapDatabase coverMap = CoverMapDatabase.getInstance();
+            coverMap.putPrepare();
+            coverMap.put(logoHash, logo);
+            coverMap.commit();
+        }
+
+        synchronized (ImageReferrerMapDatabase.getInstance()) {
+            ImageReferrerMapDatabase imageReferrerMap = ImageReferrerMapDatabase.getInstance();
+            imageReferrerMap.putPrepare();
+            imageReferrerMap.put(logo, url);
+            imageReferrerMap.commit();
+        }
 
         result.put("logo", fakeCoverDir + "1.jpg");
         result.put("logos", fakeCoverDir + "1.jpg");
@@ -114,12 +123,21 @@ public class Detail extends MangaAdapter {
         result.put("intro", response.optString("intro"));
 
         String updateTime = response.optString("updateTime");
-        result.put("lastuptime", updateTime);
-        result.put("lastuptimeex", updateTime + " 00:00:00");
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        Date date = new Date();
+        if (!updateTime.equals("")) {
+            try {
+                date = dateFormat.parse(updateTime);
+            } catch (Exception ignored) {
+            }
+        }
+        result.put("lastuptime", dateFormat.format(date));
+        result.put("lastuptimeex", dateFormat.format(date) + " 00:00:00");
 
         JSONArray sections = response.getJSONArray("sections");
         int length = sections.length();
-        synchronized (this) {
+        synchronized (ChapterMapDatabase.getInstance()) {
+            ChapterMapDatabase chapterMapDatabase = ChapterMapDatabase.getInstance();
             chapterMapDatabase.putPrepare();
             for (int i = 0; i < length; i++) {
                 JSONObject section = sections.getJSONObject(i);
@@ -144,8 +162,11 @@ public class Detail extends MangaAdapter {
                 link.put("cid", chapterID);
                 res.put("cid", chapterID);
 
-                result.put("lastup", section.optString("name"));
-                result.put("lastupcid", chapterID);
+                if (i == 0) {
+                    result.put("lastup", section.optString("name"));
+                    result.put("lastupcid", chapterID);
+                }
+
                 result.getJSONArray("links").put(link);
                 result.getJSONArray("res").put(res);
             }

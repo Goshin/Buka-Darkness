@@ -16,4 +16,5 @@
     <string name="delete_source">确认删除该源插件？</string>
     <string name="author">\@%1$s</string>
     <string name="upgrading">正在升级</string>
+    <string name="enable_search">启用搜索</string>
 </resources>

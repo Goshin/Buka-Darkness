@@ -13,14 +13,20 @@ import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.widget.AppCompatCheckBox;
+import android.support.v7.widget.AppCompatImageButton;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.PopupMenu;
 import android.support.v7.widget.RecyclerView;
 import android.util.Base64;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -100,7 +106,7 @@ public class SourceListFragment extends Fragment {
                         File oldFile = activity.getFileStreamPath(filename);
                         File newFile = activity.getFileStreamPath(md5);
                         if (oldFile.renameTo(newFile)) {
-                            SourceSettingsDatabase database = new SourceSettingsDatabase(activity);
+                            SourceSettingsDatabase database = SourceSettingsDatabase.getInstance();
                             database.delete(filename);
                             database.add(md5);
                         }
@@ -157,6 +163,7 @@ public class SourceListFragment extends Fragment {
                         map.put("title", mangaSource.title);
                         map.put("author", mangaSource.getAuthor());
                         map.put("intro", mangaSource.getIntro());
+                        map.put("enabled", SourceSettingsDatabase.getInstance().isEnabled(filename) ? "1" : "0");
 
                         list.add(map);
                     } catch (Exception e) {
@@ -176,7 +183,7 @@ public class SourceListFragment extends Fragment {
 
                             @Override
                             public void onItemLongClick(final View view, final int position) {
-                                final android.support.v7.app.AlertDialog.Builder alertDialog = new android.support.v7.app.AlertDialog.Builder(getActivity());
+                                final AlertDialog.Builder alertDialog = new AlertDialog.Builder(getActivity());
                                 alertDialog
                                         .setMessage(activity.getString(R.string.delete_source))
                                         .setNegativeButton(activity.getString(R.string.cancel), new DialogInterface.OnClickListener() {
@@ -190,13 +197,45 @@ public class SourceListFragment extends Fragment {
                                             public void onClick(DialogInterface dialog, int which) {
                                                 String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
                                                 activity.deleteFile(filename);
-                                                new SourceSettingsDatabase(activity).delete(filename);
+                                                SourceSettingsDatabase.getInstance().delete(filename);
                                                 sourceCardListAdapter.removeData(position);
                                             }
                                         })
                                         .setTitle("")
                                         .show();
                             }
+
+                            @Override
+                            public void onItemCheckedChanged(View view, boolean isChecked, int position) {
+                                String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
+                                SourceSettingsDatabase.getInstance().setEnabled(filename, isChecked);
+                            }
+
+                            @Override
+                            public void onItemMenuButtonClick(View cardView, View menuButtonView, int position) {
+                                PopupMenu popupMenu = new PopupMenu(activity, menuButtonView);
+                                popupMenu.getMenuInflater().inflate(R.menu.source_list_item_popup_menu, popupMenu.getMenu());
+
+                                final String filename = ((TextView) cardView.findViewById(R.id.textViewCardFilename)).getText().toString();
+                                MenuItem searchMenu = popupMenu.getMenu().getItem(0);
+                                final SourceSettingsDatabase sourceSettingsDatabase = SourceSettingsDatabase.getInstance();
+                                searchMenu.setChecked(sourceSettingsDatabase.isSearchEnabled(filename));
+                                searchMenu.setEnabled(sourceSettingsDatabase.isEnabled(filename));
+                                popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                                    @Override
+                                    public boolean onMenuItemClick(MenuItem item) {
+                                        if (!item.isEnabled()) {
+                                            return true;
+                                        }
+                                        sourceSettingsDatabase.setSearchEnabled(filename, !item.isChecked());
+                                        item.setChecked(!item.isChecked());
+                                        return false;
+                                    }
+                                });
+
+                                popupMenu.show();
+                            }
+
                         });
                         recyclerView.setAdapter(sourceCardListAdapter);
                         progressDialog.dismiss();
@@ -237,7 +276,7 @@ public class SourceListFragment extends Fragment {
                         newSource = false;
                     }
                     writeToFile(filename, xml);
-                    new SourceSettingsDatabase(activity).add(filename);
+                    SourceSettingsDatabase.getInstance().add(filename);
                     Snackbar.make(view.findViewById(R.id.recyclerView),
                             R.string.add_source_success, Snackbar.LENGTH_LONG).show();
 
@@ -246,6 +285,7 @@ public class SourceListFragment extends Fragment {
                     map.put("title", mangaSource.title);
                     map.put("author", mangaSource.getAuthor());
                     map.put("intro", mangaSource.getIntro());
+                    map.put("enabled", "1");
                     if (newSource) {
                         sourceCardListAdapter.addData(0, map);
                     }
@@ -255,10 +295,6 @@ public class SourceListFragment extends Fragment {
                 }
             }
         }, onError);
-    }
-
-    private interface Callback {
-        void run(Object... args);
     }
 
     private void downloadXml(String url, final Callback onSuccess, final Callback onError) {
@@ -294,20 +330,27 @@ public class SourceListFragment extends Fragment {
         fileOutputStream.close();
     }
 
+    private interface Callback {
+        void run(Object... args);
+    }
+
     interface OnItemClickListener {
         void onItemClick(View view, int position);
 
         void onItemLongClick(View view, int position);
+
+        void onItemCheckedChanged(View view, boolean isChecked, int position);
+
+        void onItemMenuButtonClick(View cardView, View menuButtonView, int position);
     }
 
     class SourceCardListAdapter extends RecyclerView.Adapter<SourceCardListAdapter.CardViewHolder> {
         ArrayList<HashMap<String, String>> list;
+        private OnItemClickListener onItemClickListener;
 
         public SourceCardListAdapter(ArrayList<HashMap<String, String>> data) {
             list = data;
         }
-
-        private OnItemClickListener onItemClickListener;
 
         public void setOnItemClickListener(OnItemClickListener onItemClickListener) {
             this.onItemClickListener = onItemClickListener;
@@ -337,6 +380,7 @@ public class SourceListFragment extends Fragment {
             holder.title.setText(map.get("title"));
             holder.author.setText(activity.getString(R.string.author, map.get("author")));
             holder.intro.setText(map.get("intro"));
+            holder.enabledCheckbox.setChecked(map.get("enabled").equals("1"));
 
             holder.card.setCardBackgroundColor(ContextCompat.getColor(getActivity(), R.color.cardview_light_background));
             holder.title.setTextColor(ContextCompat.getColor(getActivity(), R.color.colorPrimaryText));
@@ -349,6 +393,7 @@ public class SourceListFragment extends Fragment {
                     public void onClick(View v) {
                         int pos = holder.getLayoutPosition();
                         onItemClickListener.onItemClick(holder.itemView, pos);
+                        holder.itemView.findViewById(R.id.checkboxSourceEnabled).performClick();
                     }
                 });
 
@@ -358,6 +403,20 @@ public class SourceListFragment extends Fragment {
                         int pos = holder.getLayoutPosition();
                         onItemClickListener.onItemLongClick(holder.itemView, pos);
                         return false;
+                    }
+                });
+
+                holder.enabledCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        onItemClickListener.onItemCheckedChanged(holder.itemView, isChecked, holder.getLayoutPosition());
+                    }
+                });
+
+                holder.menuButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        onItemClickListener.onItemMenuButtonClick(holder.itemView, v, holder.getLayoutPosition());
                     }
                 });
             }
@@ -373,6 +432,8 @@ public class SourceListFragment extends Fragment {
             private TextView title;
             private TextView author;
             private TextView intro;
+            private AppCompatCheckBox enabledCheckbox;
+            private AppCompatImageButton menuButton;
 
             private CardView card;
 
@@ -383,6 +444,8 @@ public class SourceListFragment extends Fragment {
                 title = (TextView) view.findViewById(R.id.textViewCardTitle);
                 author = (TextView) view.findViewById(R.id.textViewCardAuthor);
                 intro = (TextView) view.findViewById(R.id.textViewCardIntro);
+                enabledCheckbox = (AppCompatCheckBox) view.findViewById(R.id.checkboxSourceEnabled);
+                menuButton = (AppCompatImageButton) view.findViewById(R.id.imageButtonSourceMenu);
             }
         }
     }

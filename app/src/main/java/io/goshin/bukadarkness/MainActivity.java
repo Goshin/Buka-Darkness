@@ -15,6 +15,8 @@ import android.support.v7.widget.Toolbar;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.goshin.bukadarkness.database.DatabaseBase;
+
 public class MainActivity extends AppCompatActivity {
 
     private SourceListFragment sourceFragment;
@@ -22,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        DatabaseBase.init(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -61,6 +64,25 @@ public class MainActivity extends AppCompatActivity {
         tabLayout.setupWithViewPager(viewPager);
     }
 
+    public static class SettingsFragment extends PreferenceFragmentCompat {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+
+            PreferenceManager preferenceManager = getPreferenceManager();
+            preferenceManager.setSharedPreferencesName("pref");
+            //noinspection deprecation
+            preferenceManager.setSharedPreferencesMode(MODE_WORLD_READABLE);
+            // Load the preferences from an XML resource
+            addPreferencesFromResource(R.xml.settings);
+        }
+
+        @Override
+        public void onCreatePreferences(Bundle bundle, String s) {
+
+        }
+    }
+
     private class ViewPagerAdapter extends FragmentPagerAdapter {
         private final List<Fragment> mFragmentList = new ArrayList<>();
         private final List<String> mFragmentTitleList = new ArrayList<>();
@@ -87,25 +109,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public CharSequence getPageTitle(int position) {
             return mFragmentTitleList.get(position);
-        }
-    }
-
-    public static class SettingsFragment extends PreferenceFragmentCompat {
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-
-            PreferenceManager preferenceManager = getPreferenceManager();
-            preferenceManager.setSharedPreferencesName("pref");
-            //noinspection deprecation
-            preferenceManager.setSharedPreferencesMode(MODE_WORLD_READABLE);
-            // Load the preferences from an XML resource
-            addPreferencesFromResource(R.xml.settings);
-        }
-
-        @Override
-        public void onCreatePreferences(Bundle bundle, String s) {
-
         }
     }
 }

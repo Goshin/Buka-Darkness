@@ -11,10 +11,17 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.net.UnknownHostException;
 
 public class Client {
     public static String request(JSONObject params) throws Throwable {
-        Socket socket = new Socket(InetAddress.getLocalHost(), Server.PORT);
+        InetAddress localAddress;
+        try {
+            localAddress = InetAddress.getLocalHost();
+        } catch (UnknownHostException ignored) {
+            localAddress = InetAddress.getByName("127.0.0.1");
+        }
+        Socket socket = new Socket(localAddress, Server.PORT);
         Writer out = new OutputStreamWriter(socket.getOutputStream(), "utf-8");
         out.write(URLEncoder.encode(params.toString(), "utf-8") + "\n");
         out.flush();
@@ -27,6 +34,9 @@ public class Client {
             inputString.append((char) c);
         }
         socket.close();
+        if (inputString.toString().trim().isEmpty()) {
+            throw new Exception("没有数据返回，该源可能暂时不可用");
+        }
         return URLDecoder.decode(inputString.toString(), "utf-8");
     }
 }

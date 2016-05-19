@@ -11,6 +11,7 @@ import java.util.Locale;
 
 import io.goshin.bukadarkness.MangaAdapter;
 import io.goshin.bukadarkness.database.ChapterMapDatabase;
+import io.goshin.bukadarkness.database.ChapterUpdateTimeDatabase;
 import io.goshin.bukadarkness.database.CoverMapDatabase;
 import io.goshin.bukadarkness.database.ImageReferrerMapDatabase;
 import io.goshin.bukadarkness.database.MangaMapDatabase;
@@ -122,18 +123,6 @@ public class Detail extends MangaAdapter {
         result.put("author", response.optString("author"));
         result.put("intro", response.optString("intro"));
 
-        String updateTime = response.optString("updateTime");
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        Date date = new Date();
-        if (!updateTime.equals("")) {
-            try {
-                date = dateFormat.parse(updateTime);
-            } catch (Exception ignored) {
-            }
-        }
-        result.put("lastuptime", dateFormat.format(date));
-        result.put("lastuptimeex", dateFormat.format(date) + " 00:00:00");
-
         JSONArray sections = response.getJSONArray("sections");
         int length = sections.length();
         synchronized (ChapterMapDatabase.getInstance()) {
@@ -165,6 +154,9 @@ public class Detail extends MangaAdapter {
                 if (i == 0) {
                     result.put("lastup", section.optString("name"));
                     result.put("lastupcid", chapterID);
+                    if (params.optBoolean("simple")) {
+                        break;
+                    }
                 }
 
                 result.getJSONArray("links").put(link);
@@ -172,6 +164,20 @@ public class Detail extends MangaAdapter {
             }
             chapterMapDatabase.commit();
         }
+
+        String updateTime = response.optString("updateTime");
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        Date date = new Date();
+        if (!updateTime.equals("")) {
+            try {
+                date = dateFormat.parse(updateTime);
+            } catch (Exception ignored) {
+            }
+        }
+        updateTime = ChapterUpdateTimeDatabase.getInstance().getUpdateTime(
+                params.optString("mid"), result.optString("lastupcid"), dateFormat.format(date));
+        result.put("lastuptime", updateTime);
+        result.put("lastuptimeex", updateTime + " 00:00:00");
 
         return result.toString();
     }

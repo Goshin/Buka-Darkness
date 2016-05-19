@@ -17,4 +17,22 @@
     <string name="author">\@%1$s</string>
     <string name="upgrading">正在升级</string>
     <string name="enable_search">启用搜索</string>
+
+    <string name="enable_log">记录日志</string>
+    <string name="enable_log_summary">打开选项后会将运行过程中的详细信息写入到 Xposed 日志中。</string>
+    <string name="popup_bars">虚拟按键随阅读菜单弹出</string>
+    <string name="popup_bars_summary">在阅读界面，弹出阅读菜单的同时暂时取消沉浸模式（需要在布卡里启用『隐藏虚拟按键』）</string>
+    <string name="version">版本</string>
+    <string name="version_detail">Beta 0.7 试验性版本</string>
+    <string name="sited_detail">插件引擎: SiteD v13</string>
+    <string name="disclaimer">声明</string>
+    <string name="only_for_testing_purposes">软件仅用作个人学习测试使用</string>
+    <string name="test_only">仅供测试</string>
+    <string name="source_code">源代码</string>
+    <string name="publish_under_GPLv3">软件及源代码基于 GPLv3 协议发布</string>
+    <string name="GNU_public_license">GNU 通用公共许可协议</string>
+    <string name="developer">作者</string>
+    <string name="developer_email">githubjohn@gmail.com\n正式的建议和反馈请在 GitHub 提交 issue</string>
+    <string name="thanks">致谢</string>
+    <string name="thanks_to_DDCat">多多猫 SiteD 及作者 @noear</string>
 </resources>

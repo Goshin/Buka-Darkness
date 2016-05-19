@@ -3,6 +3,11 @@ package io.goshin.bukadarkness.adapter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
 import io.goshin.bukadarkness.MangaAdapter;
 import io.goshin.bukadarkness.database.CoverMapDatabase;
 import io.goshin.bukadarkness.database.GroupMapDatabase;
@@ -64,6 +69,9 @@ public class Items extends MangaAdapter {
             result.put("recom", 0);
             result.put("items", new JSONArray());
         }
+        if (params.optString("f").equals("func_search")) {
+            list = sortSearchItems(list, params.optString("text"));
+        }
         synchronized (CoverMapDatabase.getInstance()) {
             synchronized (ImageReferrerMapDatabase.getInstance()) {
                 CoverMapDatabase coverMap = CoverMapDatabase.getInstance();
@@ -97,5 +105,27 @@ public class Items extends MangaAdapter {
         }
 
         return result.toString();
+    }
+
+    private JSONArray sortSearchItems(JSONArray list, final String keyword) throws Exception {
+        List<JSONObject> values = new ArrayList<>();
+        for (int i = 0; i < list.length(); i++) {
+            values.add(list.getJSONObject(i));
+        }
+
+        Collections.sort(values, new Comparator<JSONObject>() {
+            @Override
+            public int compare(JSONObject lhs, JSONObject rhs) {
+                double leftSimilarity = Utils.similarity(lhs.optString("name"), keyword);
+                double rightSimilarity = Utils.similarity(rhs.optString("name"), keyword);
+                return (int) ((rightSimilarity - leftSimilarity) * 100);
+            }
+        });
+
+        JSONArray sorted = new JSONArray();
+        for (int i = 0; i < values.size(); i++) {
+            sorted.put(values.get(i));
+        }
+        return sorted;
     }
 }

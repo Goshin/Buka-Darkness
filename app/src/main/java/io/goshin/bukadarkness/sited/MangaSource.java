@@ -2,6 +2,8 @@ package io.goshin.bukadarkness.sited;
 
 import android.app.Application;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.noear.sited.ISdViewModel;
 import org.noear.sited.SdNode;
 import org.noear.sited.SdNodeSet;
@@ -27,14 +29,9 @@ public class MangaSource extends SdSource {
         type = main.attrs.getInt("dtype");
     }
 
-    public interface Callback {
-        void run(Object... objects);
-    }
-
     public int getType() {
         return type;
     }
-
 
     public String getAuthor() {
         return author;
@@ -88,8 +85,12 @@ public class MangaSource extends SdSource {
         });
     }
 
+    public interface Callback {
+        void run(Object... objects);
+    }
+
     private class DataModel implements ISdViewModel {
-        public String jsonData;
+        private String jsonData;
 
         @Override
         public void loadByConfig(SdNode config) {
@@ -97,7 +98,43 @@ public class MangaSource extends SdSource {
 
         @Override
         public void loadByJson(SdNode config, String... json) {
-            jsonData = json[0];
+            String newJson;
+            if (json.length == 0 || json[0] == null) {
+                newJson = "";
+            } else {
+                newJson = json[0];
+            }
+
+            if (jsonData == null || jsonData.isEmpty()) {
+                jsonData = newJson;
+                return;
+            }
+
+            if (jsonData.trim().startsWith("{") && newJson.trim().startsWith("{")) {
+                try {
+                    JSONObject jsonObject = new JSONObject(jsonData);
+                    JSONObject newJsonObject = new JSONObject(newJson);
+                    JSONArray names = newJsonObject.names();
+                    for (int i = 0; i < names.length(); i++) {
+                        String key = names.getString(i);
+                        Object value = newJsonObject.get(key);
+
+                        if (!jsonObject.isNull(key)) {
+                            if (value instanceof JSONArray && ((JSONArray) value).length() == 0) {
+                                continue;
+                            } else if (value instanceof JSONObject && ((JSONObject) value).length() == 0) {
+                                continue;
+                            } else if (value instanceof String && ((String) value).length() == 0) {
+                                continue;
+                            }
+                        }
+
+                        jsonObject.put(key, value);
+                    }
+                    jsonData = jsonObject.toString();
+                } catch (Exception ignored) {
+                }
+            }
         }
 
         public String getJsonData() {

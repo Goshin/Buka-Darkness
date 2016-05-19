@@ -61,7 +61,7 @@ public class KVMapDatabase extends DatabaseBase {
         ContentValues contentValues = new ContentValues();
         contentValues.put("entry_key", key);
         contentValues.put("entry_value", value);
-        writableDatabase.insert(tableName, null, contentValues);
+        writableDatabase.insertWithOnConflict(tableName, null, contentValues, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
     public void commit() {

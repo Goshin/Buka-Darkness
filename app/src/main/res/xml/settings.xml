@@ -1,55 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <PreferenceCategory android:title="设置">
+    <PreferenceCategory android:title="@string/settings">
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="verbose"
-            android:summary="打开选项后会将运行过程中的详细信息写入到 Xposed 日志中。"
-            android:title="记录日志" />
+            android:summary="@string/enable_log_summary"
+            android:title="@string/enable_log" />
         <CheckBoxPreference
             android:defaultValue="true"
             android:key="popup_bars"
-            android:summary="在阅读界面，弹出阅读菜单的同时暂时取消沉浸模式（需要在布卡里启用『隐藏虚拟按键』）"
-            android:title="虚拟按键随阅读菜单弹出" />
+            android:summary="@string/popup_bars_summary"
+            android:title="@string/popup_bars" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="版本">
-        <Preference android:title="Beta 0.6 试验性版本" />
+    <PreferenceCategory android:title="@string/version">
+        <Preference android:title="@string/version_detail" />
         <Preference
             android:summary="http://sited.noear.org/"
-            android:title="插件引擎: SiteD v13">
+            android:title="@string/sited_detail">
             <intent
                 android:action="android.intent.action.VIEW"
                 android:data="http://sited.noear.org/" />
         </Preference>
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="声明">
+    <PreferenceCategory android:title="@string/disclaimer">
         <Preference
-            android:summary="软件仅用作个人学习测试使用"
-            android:title="仅供测试" />
+            android:summary="@string/only_for_testing_purposes"
+            android:title="@string/test_only" />
         <Preference
             android:summary="https://github.com/Goshin/Buka-Darkness"
-            android:title="源代码">
+            android:title="@string/source_code">
             <intent
                 android:action="android.intent.action.VIEW"
                 android:data="https://github.com/Goshin/Buka-Darkness" />
         </Preference>
         <Preference
-            android:summary="软件及源代码基于 GPLv3 协议发布"
-            android:title="GNU 通用公共许可协议" />
+            android:summary="@string/publish_under_GPLv3"
+            android:title="@string/GNU_public_license" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="作者">
+    <PreferenceCategory android:title="@string/developer">
         <Preference
-            android:summary="githubjohn@gmail.com\n正式的建议和反馈请在 GitHub 提交 issue"
+            android:summary="@string/developer_email"
             android:title="John" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="致谢">
+    <PreferenceCategory android:title="@string/thanks">
         <Preference
             android:summary="https://github.com/noear/SiteD"
-            android:title="多多猫 SiteD 及作者 @noear">
+            android:title="@string/thanks_to_DDCat">
             <intent
                 android:action="android.intent.action.VIEW"
                 android:data="https://github.com/noear/SiteD" />

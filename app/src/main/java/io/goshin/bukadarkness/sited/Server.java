@@ -52,6 +52,7 @@ public class Server extends Service {
         if (logWriter != null) {
             StringWriter stringWriter = new StringWriter();
             t.printStackTrace(new PrintWriter(stringWriter));
+            t.printStackTrace();
             log(stringWriter.toString());
         }
     }
@@ -94,12 +95,10 @@ public class Server extends Service {
                             final Socket clientSocket = serverSocket.accept();
                             new InputProcessThread(clientSocket).start();
                         } catch (Exception e) {
-                            e.printStackTrace();
                             log(e);
                         }
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
                     log(e);
                 }
             }
@@ -138,27 +137,26 @@ public class Server extends Service {
             }
             final Socket clientSocket = (Socket) msg.obj;
             Bundle bundle = msg.getData();
+            final MangaSource.Callback sendResponseCallback = new MangaSource.Callback() {
+                @Override
+                public void run(Object... objects) {
+                    String result = (String) objects[0];
+                    if (result == null) {
+                        result = "";
+                    }
+                    try {
+                        Writer out = new OutputStreamWriter(clientSocket.getOutputStream(), "utf-8");
+                        out.write(URLEncoder.encode(result, "utf-8") + "\n");
+                        out.flush();
+                        clientSocket.close();
+                    } catch (Exception e) {
+                        log(e);
+                    }
+                }
+            };
+
             try {
                 JSONObject params = new JSONObject(bundle.getString("params"));
-                final MangaSource.Callback sendResponseCallback = new MangaSource.Callback() {
-                    @Override
-                    public void run(Object... objects) {
-                        String result = (String) objects[0];
-                        if (result == null) {
-                            result = "";
-                        }
-                        try {
-                            Writer out = new OutputStreamWriter(clientSocket.getOutputStream(), "utf-8");
-                            out.write(URLEncoder.encode(result, "utf-8") + "\n");
-                            out.flush();
-                            clientSocket.close();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            log(e);
-                        }
-                    }
-                };
-
                 final MangaSource mangaSource = SiteDBridge.sources.get(params.optString("fp"));
                 switch (params.optString("f").toLowerCase()) {
                     case "func_getmangagroups":
@@ -183,7 +181,6 @@ public class Server extends Service {
                                     }
                                     sendResponseCallback.run(jsonArray.toString());
                                 } catch (JSONException e) {
-                                    e.printStackTrace();
                                     log(e);
                                     sendResponseCallback.run("[]");
                                 }
@@ -208,7 +205,6 @@ public class Server extends Service {
                                         searchResult.put(book);
                                     }
                                 } catch (JSONException e) {
-                                    e.printStackTrace();
                                     log(e);
                                 }
                                 if (sourceCount-- == 1) {
@@ -220,7 +216,12 @@ public class Server extends Service {
                             sendResponseCallback.run("[]");
                         } else {
                             for (MangaSource searchMangaSource : SiteDBridge.searchSources.values()) {
-                                searchMangaSource.search(params.optString("text"), searchCallback);
+                                try {
+                                    searchMangaSource.search(params.optString("text"), searchCallback);
+                                } catch (Exception e) {
+                                    log(e);
+                                    searchCallback.run("", null);
+                                }
                             }
                         }
                         break;
@@ -242,8 +243,14 @@ public class Server extends Service {
                         clientSocket.close();
                 }
             } catch (Throwable e) {
-                e.printStackTrace();
                 log(e);
+                try {
+                    if (!clientSocket.isClosed()) {
+                        sendResponseCallback.run("");
+                        clientSocket.close();
+                    }
+                } catch (Exception ignored) {
+                }
             }
 
         }
@@ -280,7 +287,6 @@ public class Server extends Service {
                         message.obj = clientSocket;
                         processHandler.sendMessage(message);
                     } catch (Exception e) {
-                        e.printStackTrace();
                         log(e);
                     }
                 }

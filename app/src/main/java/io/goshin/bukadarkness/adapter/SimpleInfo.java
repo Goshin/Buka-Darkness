@@ -41,7 +41,7 @@ public class SimpleInfo extends MangaAdapter {
 
         ExecutorService executorService = Executors.newFixedThreadPool(THREADS);
         for (final int mid : matchMangaIDs) {
-            final JSONObject requestJSON = new JSONObject("{\"f\":\"func_getdetail\"}");
+            final JSONObject requestJSON = new JSONObject("{\"f\":\"func_getdetail\", simple:true}");
             requestJSON.put("mid", mid);
             executorService.execute(new Runnable() {
                 @SuppressWarnings("SpellCheckingInspection")
@@ -70,7 +70,11 @@ public class SimpleInfo extends MangaAdapter {
             });
         }
         executorService.shutdown();
-        executorService.awaitTermination(100, TimeUnit.SECONDS);
+        try {
+            executorService.awaitTermination(100, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            return "{ret:-1}";
+        }
 
         return result.toString();
     }

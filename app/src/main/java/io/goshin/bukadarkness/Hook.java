@@ -11,9 +11,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
-import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
@@ -43,14 +40,9 @@ import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
-import io.goshin.bukadarkness.adapter.Comments;
-import io.goshin.bukadarkness.adapter.Contributions;
-import io.goshin.bukadarkness.adapter.Detail;
-import io.goshin.bukadarkness.adapter.Groups;
 import io.goshin.bukadarkness.adapter.Index;
 import io.goshin.bukadarkness.adapter.Items;
-import io.goshin.bukadarkness.adapter.Rate;
-import io.goshin.bukadarkness.adapter.SimpleInfo;
+import io.goshin.bukadarkness.adapter.MangaAdapterFactory;
 import io.goshin.bukadarkness.adapter.Utils;
 import io.goshin.bukadarkness.database.CoverMapDatabase;
 import io.goshin.bukadarkness.database.DatabaseBase;
@@ -58,57 +50,25 @@ import io.goshin.bukadarkness.database.ImageReferrerMapDatabase;
 
 @SuppressWarnings("deprecation")
 public class Hook implements IXposedHookLoadPackage {
+    public static Bundle config = new Bundle();
+    public static SharedPreferences bukaPref;
 
-    public boolean verbose = false;
+    public static boolean verbose = false;
     private Activity activity;
     private Handler mainThreadHandler;
-    private Activity readerActivity;
-    private boolean popupBars;
 
-    private void log(String text) {
+    public static void log(String text) {
         if (verbose) {
             XposedBridge.log(text);
         }
     }
 
-    private void log(Throwable throwable) {
+    public static void log(Throwable throwable) {
         if (verbose) {
             XposedBridge.log(throwable);
         }
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
-    private MangaAdapter getAdapter(String f) {
-        String action = f.substring(f.indexOf("_") + 1).toLowerCase();
-        MangaAdapter adapter = null;
-        switch (action) {
-            case "getmangagroups":
-                adapter = new Groups();
-                break;
-            case "getgroupitems":
-                adapter = new Items();
-                break;
-            case "search":
-                adapter = new Items();
-                break;
-            case "getdetail":
-                adapter = new Detail();
-                break;
-            case "userdiscussm":
-                adapter = new Comments();
-                break;
-            case "contributioninfo":
-                adapter = new Contributions();
-                break;
-            case "mangarate":
-                adapter = new Rate();
-                break;
-            case "getsimpleinfo":
-                adapter = new SimpleInfo();
-                break;
-        }
-        return adapter;
-    }
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
@@ -116,6 +76,7 @@ public class Hook implements IXposedHookLoadPackage {
             return;
         }
 
+        loadPreference();
         XposedHelpers.findAndHookMethod("org.apache.http.impl.client.AbstractHttpClient", loadPackageParam.classLoader, "execute", HttpUriRequest.class, new XC_MethodHook() {
             private JSONObject getParam(HttpPost request) throws Throwable {
                 try {
@@ -136,7 +97,7 @@ public class Hook implements IXposedHookLoadPackage {
 
                 String url = request.getURI().toString();
                 JSONObject params = getParam(request);
-                MangaAdapter adapter = getAdapter(params.optString("f"));
+                MangaAdapter adapter = MangaAdapterFactory.getAdapter(params.optString("f"));
                 if (url.toLowerCase().contains("bug") || (adapter != null && adapter.needRedirect(params))) {
                     request.setURI(new URI("http://www.baidu.com/"));
                 }
@@ -154,7 +115,7 @@ public class Hook implements IXposedHookLoadPackage {
                 log("HttpPostURL " + url);
 
                 JSONObject params = getParam(request);
-                MangaAdapter adapter = getAdapter(params.optString("f"));
+                MangaAdapter adapter = MangaAdapterFactory.getAdapter(params.optString("f"));
                 if (adapter == null) {
                     return;
                 }
@@ -283,7 +244,7 @@ public class Hook implements IXposedHookLoadPackage {
                 activity = (Activity) param.thisObject;
                 activity.startService(serviceIntent);
                 DatabaseBase.init(activity);
-                loadPreference();
+                bukaPref = activity.getSharedPreferences(activity.getPackageName() + "_preferences", Context.MODE_PRIVATE);
             }
         };
         XC_MethodHook stopServiceHook = new XC_MethodHook() {
@@ -300,43 +261,6 @@ public class Hook implements IXposedHookLoadPackage {
             }
         };
 
-        XC_MethodHook onReaderCreateHook = new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                readerActivity = (Activity) param.thisObject;
-            }
-        };
-        XC_MethodHook showReaderMenuHook = new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                Window window = readerActivity.getWindow();
-                SharedPreferences preferences = readerActivity.getSharedPreferences(readerActivity.getPackageName() + "_preferences", Context.MODE_PRIVATE);
-                if (apiLevel >= 19 && popupBars && preferences.getBoolean("use_immersive_mode", false)) {
-                    window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-                    window.setFlags(~WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                            WindowManager.LayoutParams.FLAG_FULLSCREEN);
-                }
-            }
-        };
-        XC_MethodHook hideReaderMenuHook = new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                Window window = readerActivity.getWindow();
-                SharedPreferences preferences = readerActivity.getSharedPreferences(readerActivity.getPackageName() + "_preferences", Context.MODE_PRIVATE);
-                if (Build.VERSION.SDK_INT >= 19 && popupBars && preferences.getBoolean("use_immersive_mode", false)) {
-                    window.getDecorView().setSystemUiVisibility(
-                            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    );
-                    window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                            WindowManager.LayoutParams.FLAG_FULLSCREEN);
-                }
-            }
-        };
 
         String packageName = loadPackageParam.packageName;
         String mainActivityClassName = packageName + ".ActivityMain";
@@ -347,11 +271,7 @@ public class Hook implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod(mainActivityClassName, loadPackageParam.classLoader, "onDestroy", stopServiceHook);
         XposedHelpers.findAndHookMethod(Activity.class, "moveTaskToBack", "boolean", onMoveToBackHook);
 
-        XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "onCreate", Bundle.class, onReaderCreateHook);
-        XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "onBackPressed", onMoveToBackHook);
-
-        XposedHelpers.findAndHookMethod(packageName + ".ViewReaderMenu", loadPackageParam.classLoader, "b", showReaderMenuHook);
-        XposedHelpers.findAndHookMethod(packageName + ".ViewReaderMenu", loadPackageParam.classLoader, "c", hideReaderMenuHook);
+        ReaderHook.initHook(packageName, loadPackageParam);
 
 
         XposedHelpers.findAndHookMethod("android.app.ApplicationPackageManager", loadPackageParam.classLoader, "getInstalledApplications", int.class, new XC_MethodHook() {
@@ -391,7 +311,11 @@ public class Hook implements IXposedHookLoadPackage {
         pref.reload();
 
         verbose = pref.getBoolean("verbose", false);
-        popupBars = pref.getBoolean("popup_bars", true);
+        config.putBoolean("verbose", verbose);
+        config.putBoolean("popupBars", pref.getBoolean("popup_bars", true));
+        config.putBoolean("sortSearchResult", pref.getBoolean("sort_search_result", true));
+        config.putBoolean("classifyChapter", pref.getBoolean("classify_chapter", true));
+        config.putBoolean("splitLinkedPage", pref.getBoolean("split_linked_page", true));
     }
 
     private void toast(final String text) {

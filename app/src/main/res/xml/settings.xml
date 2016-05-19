@@ -11,17 +11,28 @@
             android:key="popup_bars"
             android:summary="@string/popup_bars_summary"
             android:title="@string/popup_bars" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="sort_search_result"
+            android:summary="@string/sort_search_result_summary"
+            android:title="@string/sort_search_result" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="classify_chapter"
+            android:summary="@string/classify_chapter_summary"
+            android:title="@string/classify_chapter" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="split_linked_page"
+            android:summary="@string/split_linked_page_summary"
+            android:title="@string/split_linked_page" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/version">
-        <Preference android:title="@string/version_detail" />
         <Preference
-            android:summary="http://sited.noear.org/"
-            android:title="@string/sited_detail">
-            <intent
-                android:action="android.intent.action.VIEW"
-                android:data="http://sited.noear.org/" />
-        </Preference>
+            android:key="version_name"
+            android:title="version" />
+        <Preference android:title="@string/sited_detail" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/disclaimer">

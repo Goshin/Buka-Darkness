@@ -6,9 +6,14 @@ import org.json.JSONObject;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 
+import de.daslaboratorium.machinelearning.classifier.Classification;
+import de.daslaboratorium.machinelearning.classifier.Classifier;
+import de.daslaboratorium.machinelearning.classifier.bayes.BayesClassifier;
+import io.goshin.bukadarkness.Hook;
 import io.goshin.bukadarkness.MangaAdapter;
 import io.goshin.bukadarkness.database.ChapterMapDatabase;
 import io.goshin.bukadarkness.database.ChapterUpdateTimeDatabase;
@@ -18,6 +23,33 @@ import io.goshin.bukadarkness.database.MangaMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
 
 public class Detail extends MangaAdapter {
+    private static Classifier<String, String> classifier;
+
+    private static Classifier<String, String> getClassifier() {
+        if (classifier == null) {
+            classifier = new BayesClassifier<>();
+
+            String[] seriesChapter = new String[]{"話", "话", "第話", "第话", "第回", "第"};
+            String[] offprintChapter = new String[]{"卷", "册", "第卷", "第册"};
+            String[] extraChapter = new String[]{"设定", "采访", "日常", "同人", "人气投票", "下编", "中篇", "前编", "外传下", "外传上", "番外篇", "第卷番外", "番外篇", "番外篇", "番外篇", "附录漫画", "番外", "番外", "篇", "番外", "外传", "番外", "番外", "设定", "第卷番外", "特别篇", "番外篇", "小剧场", "番外", "附赠", "彩页", "番外篇", "番外篇", "番外篇", "番外", "番外篇", "番外篇", "番外篇", "四格", "番外篇", "第卷番外", "第卷番外", "特别篇", "番外篇", "附录", "番外篇", "番外篇", "动画官网彩页(附无字版)", "琦玉老师与恐龙(推图P)", "MJ番外篇", "可爱的野猫", "弹丸天使", "番外", "YougJump出张版", "YougJump出张版", "live出张版", "卷番外", "番外篇", "附刊", "番外篇", "短篇"};
+
+            for (String name : seriesChapter) {
+                for (int i = 0; i < 13; i++) {
+                    classifier.learn("series", Arrays.asList(name.split("|")));
+                }
+            }
+            for (String name : offprintChapter) {
+                for (int i = 0; i < 5; i++) {
+                    classifier.learn("offprint", Arrays.asList(name.split("|")));
+                }
+            }
+            for (String name : extraChapter) {
+                classifier.learn("extra", Arrays.asList(name.split("|")));
+            }
+        }
+        return classifier;
+    }
+
     @Override
     public Boolean needRedirect(JSONObject params) throws Throwable {
         return !MangaMapDatabase.getInstance().getUrl(params.optString("mid")).equals("");
@@ -125,11 +157,14 @@ public class Detail extends MangaAdapter {
 
         JSONArray sections = response.getJSONArray("sections");
         int length = sections.length();
+        int seriesCount = 1;
+        int offprintCount = 1;
+        int extraCount = 1;
         synchronized (ChapterMapDatabase.getInstance()) {
             ChapterMapDatabase chapterMapDatabase = ChapterMapDatabase.getInstance();
             chapterMapDatabase.putPrepare();
-            for (int i = 0; i < length; i++) {
-                JSONObject section = sections.getJSONObject(i);
+            for (int i = 1; i <= length; i++) {
+                JSONObject section = sections.getJSONObject(length - i);
                 JSONObject link = new JSONObject("{\n" +
                         "    \"cid\": \"65542\",\n" +
                         "    \"idx\": \"6\",\n" +
@@ -143,27 +178,46 @@ public class Detail extends MangaAdapter {
                         "    \"restype\": \"1\",\n" +
                         "    \"csize\": \"8888\"\n" +
                         "}");
-                link.put("idx", String.valueOf(length - i));
-                link.put("title", section.optString("name"));
+                link.put("idx", String.valueOf(i));
+                String chapterName = section.optString("name").replaceFirst(".*?(\\d.+)$", "$1");
+                link.put("title", chapterName);
 
-                String chapterID = String.valueOf(65536 + length - i);
-                chapterMapDatabase.put(Long.parseLong(params.optString("mid")), Long.parseLong(chapterID), params.optString("fp"), section.optString("url"));
+                int cid;
+                switch (Hook.config.getBoolean("classifyChapter") ? getCategory(section.optString("name")) : "series") {
+                    default:
+                        cid = 0x10000 + seriesCount++;
+                        break;
+                    case "offprint":
+                        cid = 0x20000 + offprintCount++;
+                        break;
+                    case "extra":
+                        cid = 0x30000 + extraCount++;
+                        break;
+                }
+                String chapterID = String.valueOf(cid);
+                if (!params.optBoolean("simple")) {
+                    chapterMapDatabase.put(
+                            Long.parseLong(params.optString("mid")),
+                            Long.parseLong(chapterID),
+                            params.optString("fp"),
+                            section.optString("url")
+                    );
+                }
                 link.put("cid", chapterID);
+                link.put("type", cid / 0x10000 - 1);
                 res.put("cid", chapterID);
 
-                if (i == 0) {
-                    result.put("lastup", section.optString("name"));
+                if (i == length) {
+                    result.put("lastup", chapterName);
                     result.put("lastupcid", chapterID);
-                    if (params.optBoolean("simple")) {
-                        break;
-                    }
                 }
 
-                result.getJSONArray("links").put(link);
-                result.getJSONArray("res").put(res);
+                result.getJSONArray("links").put(length - i, link);
+                result.getJSONArray("res").put(length - i, res);
             }
             chapterMapDatabase.commit();
         }
+
 
         String updateTime = response.optString("updateTime");
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -180,5 +234,11 @@ public class Detail extends MangaAdapter {
         result.put("lastuptimeex", updateTime + " 00:00:00");
 
         return result.toString();
+    }
+
+    public String getCategory(String name) {
+        name = name.replaceAll("\\s+", "").replaceAll("\\d+", "n");
+        Classification<String, String> classification = getClassifier().classify(Arrays.asList(name.split("|")));
+        return classification.getCategory();
     }
 }

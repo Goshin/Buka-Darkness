@@ -18,12 +18,18 @@
     <string name="upgrading">正在升級</string>
     <string name="enable_search">啟用搜尋</string>
 
-    <string name="enable_log">紀錄日志</string>
-    <string name="enable_log_summary">打開此選項後會將執行過程中的詳細訊息寫入到 Xposed 日志中。</string>
+    <string name="enable_log">紀錄日誌</string>
+    <string name="enable_log_summary">打開此選項後會將執行過程中的詳細訊息寫入到 Xposed 日誌中。</string>
     <string name="popup_bars">虛擬鍵隨閱讀選單彈出</string>
     <string name="popup_bars_summary">在閱讀界面，彈出閱讀選單的同時暫時取消沉浸模式（需要在布卡裡啟用『隱藏虛擬按鍵』）</string>
+    <string name="sort_search_result">搜尋結果按相關度排序</string>
+    <string name="sort_search_result_summary">開啟選項後搜尋結果將依照與關鍵字的相關度排序，否則按來源劃分結果。</string>
+    <string name="classify_chapter">章節自動分類</string>
+    <string name="classify_chapter_summary">根據章節名劃分為『連載』『單行本』和『番外篇』。</string>
+    <string name="split_linked_page">聯頁分割</string>
+    <string name="split_linked_page_summary">自動分割雙頁漫畫，切頁方向與閱讀翻頁方向一致。</string>
     <string name="version">版本</string>
-    <string name="version_detail">Beta 0.7 測試性版本</string>
+    <string name="version_detail">Beta %1$s 測試性版本</string>
     <string name="sited_detail">插件引擎: SiteD v13</string>
     <string name="disclaimer">聲明</string>
     <string name="only_for_testing_purposes">軟體僅用作個人學習測試使用</string>

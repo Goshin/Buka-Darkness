@@ -1,6 +1,7 @@
 package io.goshin.bukadarkness;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
@@ -75,6 +76,14 @@ public class MainActivity extends AppCompatActivity {
             preferenceManager.setSharedPreferencesMode(MODE_WORLD_READABLE);
             // Load the preferences from an XML resource
             addPreferencesFromResource(R.xml.settings);
+            try {
+                getPreferenceManager().findPreference("version_name").setTitle(getString(
+                        R.string.version_detail,
+                        getActivity().getPackageManager().getPackageInfo(getActivity().getPackageName(), 0)
+                                .versionName
+                ));
+            } catch (PackageManager.NameNotFoundException ignored) {
+            }
         }
 
         @Override

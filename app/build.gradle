@@ -8,8 +8,8 @@ android {
         applicationId "io.goshin.bukadarkness"
         minSdkVersion 16
         targetSdkVersion 23
-        versionCode 17
-        versionName "0.7.0"
+        versionCode 18
+        versionName "0.8.0"
     }
     buildTypes {
         release {
@@ -24,8 +24,10 @@ android {
 dependencies {
     testCompile 'junit:junit:4.12'
     provided files('libs/XposedBridgeApi-54.jar')
-    compile project(":libs:siteD")
-
+    // Remove the following line before synchronization.
+    provided files('libs/buka.jar')
+    compile project(':libs:siteD')
+    compile project(':libs:bayes')
     compile 'com.android.support:appcompat-v7:23.2.1'
     compile 'com.android.support:design:23.2.1'
     compile 'com.android.support:support-v4:23.2.1'

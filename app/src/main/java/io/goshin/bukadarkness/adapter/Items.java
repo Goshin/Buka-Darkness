@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import io.goshin.bukadarkness.Hook;
 import io.goshin.bukadarkness.MangaAdapter;
 import io.goshin.bukadarkness.database.CoverMapDatabase;
 import io.goshin.bukadarkness.database.GroupMapDatabase;
@@ -69,7 +70,7 @@ public class Items extends MangaAdapter {
             result.put("recom", 0);
             result.put("items", new JSONArray());
         }
-        if (params.optString("f").equals("func_search")) {
+        if (Hook.config.getBoolean("sortSearchResult") && params.optString("f").equals("func_search")) {
             list = sortSearchItems(list, params.optString("text"));
         }
         synchronized (CoverMapDatabase.getInstance()) {

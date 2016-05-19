@@ -22,8 +22,14 @@
     <string name="enable_log_summary">打开选项后会将运行过程中的详细信息写入到 Xposed 日志中。</string>
     <string name="popup_bars">虚拟按键随阅读菜单弹出</string>
     <string name="popup_bars_summary">在阅读界面，弹出阅读菜单的同时暂时取消沉浸模式（需要在布卡里启用『隐藏虚拟按键』）</string>
+    <string name="sort_search_result">搜索按相关度排序</string>
+    <string name="sort_search_result_summary">开启选项后搜索结果将按照与关键字的相关度排序，否则按站点划分结果。</string>
+    <string name="classify_chapter">章节自动分类</string>
+    <string name="classify_chapter_summary">根据章节名划分为『连载』『单行本』和『番外篇』。</string>
+    <string name="split_linked_page">联页切分</string>
+    <string name="split_linked_page_summary">自动切分双页漫画，切页方向与阅读方向一致。</string>
     <string name="version">版本</string>
-    <string name="version_detail">Beta 0.7 试验性版本</string>
+    <string name="version_detail">Beta %1$s 试验性版本</string>
     <string name="sited_detail">插件引擎: SiteD v13</string>
     <string name="disclaimer">声明</string>
     <string name="only_for_testing_purposes">软件仅用作个人学习测试使用</string>

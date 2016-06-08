@@ -17,6 +17,6 @@ public class Rate extends MangaAdapter {
             return originalResult.toString();
         }
 
-        throw new Exception("又不是布卡的漫画，你评分干嘛？");
+        throw new Exception("不支持评分");
     }
 }

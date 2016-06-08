@@ -199,7 +199,7 @@ public class Hook implements IXposedHookLoadPackage {
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 URL url = ((URLConnection) param.thisObject).getURL();
                 log("URLConnection getInputStream " + url);
-                if (!url.toString().contains("req3.php")) {
+                if (!url.toString().matches(".*?/req\\d+\\.php.*")) {
                     return;
                 }
 
@@ -267,8 +267,14 @@ public class Hook implements IXposedHookLoadPackage {
         if (packageName.toLowerCase().contains("hd")) {
             mainActivityClassName = packageName + ".hd.HDActivityMain";
         }
-        XposedHelpers.findAndHookMethod(mainActivityClassName, loadPackageParam.classLoader, "onCreate", Bundle.class, startServiceHook);
-        XposedHelpers.findAndHookMethod(mainActivityClassName, loadPackageParam.classLoader, "onDestroy", stopServiceHook);
+        Class mainActivityClass;
+        try {
+            mainActivityClass = XposedHelpers.findClass(mainActivityClassName, loadPackageParam.classLoader);
+        } catch (XposedHelpers.ClassNotFoundError ignored) {
+            mainActivityClass = XposedHelpers.findClass("cn.ibuka.manga.md.activity.ActivityMain", loadPackageParam.classLoader);
+        }
+        XposedHelpers.findAndHookMethod(mainActivityClass, "onCreate", Bundle.class, startServiceHook);
+        XposedHelpers.findAndHookMethod(mainActivityClass, "onDestroy", stopServiceHook);
         XposedHelpers.findAndHookMethod(Activity.class, "moveTaskToBack", "boolean", onMoveToBackHook);
 
         ReaderHook.initHook(packageName, loadPackageParam);

@@ -24,7 +24,8 @@ public class Groups extends MangaAdapter {
                     "    \"gname\": \"ACG资讯\",\n" +
                     "    \"func\": \"1\",\n" +
                     "    \"param\": \"12011\",\n" +
-                    "    \"logo\": \"http://i.imgur.com/23L5FtE.png\",\n" +
+                    "    \"logo\": \"http://i.imgur.com/l5e6bEo.jpg\",\n" +
+                    "    \"logo2\": \"http://i.imgur.com/23L5FtE.png\",\n" +
                     "    \"cx\": \"0\",\n" +
                     "    \"cy\": \"0\",\n" +
                     "    \"locked\": \"0\",\n" +
@@ -37,7 +38,11 @@ public class Groups extends MangaAdapter {
             group.put("gid", gid);
             group.put("gname", name);
             group.put("param", gid);
-            originalResult.getJSONArray("groups").put(group);
+            if (originalResult.getJSONArray("groups").getJSONObject(0).isNull("type")) {
+                originalResult.getJSONArray("groups").put(group);
+            } else {
+                originalResult.getJSONArray("groups").getJSONObject(0).getJSONArray("items").put(group);
+            }
         }
 
         return originalResult.toString();

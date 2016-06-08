@@ -14,7 +14,10 @@ import android.widget.ImageView;
 
 import org.json.JSONObject;
 
+import java.lang.reflect.Method;
+
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import io.goshin.bukadarkness.adapter.Detail;
@@ -88,6 +91,9 @@ public class ReaderHook {
         XposedHelpers.findAndHookMethod("cn.ibuka.common.widget.BukaImageView_SpecArea", loadPackageParam.classLoader, "getFitImagePosition", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (!splitLinkedPage || !in3rdPartyManga) {
+                    return;
+                }
                 RectF imageRectF = (RectF) XposedHelpers.callMethod(param.thisObject, "getImageResourceRectF");
                 float imageWidth = imageRectF.right;
                 float imageHeight = imageRectF.bottom;
@@ -124,6 +130,9 @@ public class ReaderHook {
                 float offset = 0;
                 if (Hook.bukaPref.getBoolean("vert_reading_rtl", false)) {
                     offset = viewWidth - imageWidth * scale;
+                }
+                if (viewWidth > imageWidth * scale) {
+                    offset = (viewWidth - imageWidth * scale) / 2;
                 }
                 matrix.postTranslate(offset, (viewHeight - imageHeight * scale) / 2);
                 XposedHelpers.callMethod(param.thisObject, "setImageMatrix", matrix);
@@ -182,7 +191,16 @@ public class ReaderHook {
             }
         });
 
-        XposedHelpers.findAndHookMethod(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "b", "int", "int", new XC_MethodHook() {
+        Method flipPageMethod;
+        try {
+            flipPageMethod = XposedHelpers.findMethodExact(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "b", "int", "int");
+            if (flipPageMethod.getReturnType() != XposedHelpers.findClass("boolean", loadPackageParam.classLoader)) {
+                throw new NoSuchMethodError();
+            }
+        } catch (NoSuchMethodError ignored) {
+            flipPageMethod = XposedHelpers.findMethodExact(packageName + ".ActivityBukaReader", loadPackageParam.classLoader, "c", "int", "int");
+        }
+        XposedBridge.hookMethod(flipPageMethod, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (splitLinkedPage && in3rdPartyManga && consumed) {

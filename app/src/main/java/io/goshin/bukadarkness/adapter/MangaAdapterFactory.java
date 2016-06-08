@@ -9,6 +9,7 @@ public class MangaAdapterFactory {
         MangaAdapter adapter = null;
         switch (action) {
             case "getmangagroups":
+            case "getcategory":
                 adapter = new Groups();
                 break;
             case "getgroupitems":

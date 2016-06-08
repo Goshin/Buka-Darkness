@@ -160,6 +160,7 @@ public class Server extends Service {
                 final MangaSource mangaSource = SiteDBridge.sources.get(params.optString("fp"));
                 switch (params.optString("f").toLowerCase()) {
                     case "func_getmangagroups":
+                    case "func_getcategory":
                         sendResponseCallback.run(SiteDBridge.getGroupJson());
                         break;
                     case "func_getgroupitems":

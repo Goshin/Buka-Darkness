@@ -32,6 +32,28 @@ public class SdJscript {
         }
     }
 
+    static boolean tryLoadLibItem(Resources asset, int resID, JsEngine js) {
+        try {
+            InputStream is = asset.openRawResource(resID);
+            BufferedReader in = new BufferedReader(new InputStreamReader(is, "utf-8"));
+            String code = doToString(in);
+            js.loadJs(code);
+
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    static String doToString(BufferedReader in) throws IOException {
+        StringBuffer buffer = new StringBuffer();
+        String line = "";
+        while ((line = in.readLine()) != null) {
+            buffer.append(line);
+        }
+        return buffer.toString();
+    }
+
     public void loadJs(Application app, JsEngine js) {
         if (require.isEmpty() == false) {
             for (SdNode n1 : require.items()) {
@@ -45,12 +67,18 @@ public class SdJscript {
                 //2.尝试网络加载
                 Log.v("SdJscript", n1.url);
 
-                n1.cache = 1; //长久缓存js文件
-                Util.http(s, false, n1.url, null, 0, n1, (code, t, text) -> {
+                if (n1.cache == 0) {
+                    n1.cache = 1; //长久缓存js文件 //默认长久缓存
+                }
+
+                HttpMessage msg = new HttpMessage(n1, n1.url);
+                msg.callback = (code, sender, text, url302) -> {
                     if (code == 1) {
                         js.loadJs(text);
                     }
-                });
+                };
+
+                Util.http(s, false, msg);
             }
         }
 
@@ -82,27 +110,5 @@ public class SdJscript {
             default:
                 return false;
         }
-    }
-
-    static boolean tryLoadLibItem(Resources asset, int resID, JsEngine js) {
-        try {
-            InputStream is = asset.openRawResource(resID);
-            BufferedReader in = new BufferedReader(new InputStreamReader(is, "utf-8"));
-            String code = doToString(in);
-            js.loadJs(code);
-
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
-
-    static String doToString(BufferedReader in) throws IOException {
-        StringBuffer buffer = new StringBuffer();
-        String line = "";
-        while ((line = in.readLine()) != null) {
-            buffer.append(line);
-        }
-        return buffer.toString();
     }
 }

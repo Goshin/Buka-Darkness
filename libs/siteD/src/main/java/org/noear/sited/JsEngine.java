@@ -32,7 +32,17 @@ class JsEngine {
                 }
             }
         };
+
         engine.registerJavaMethod(callback, "print");
+
+        SdExt ext = new SdExt(sd);
+
+        V8Object v8Ext = new V8Object(this.engine);
+        this.engine.add("SdExt", v8Ext);
+
+        v8Ext.registerJavaMethod(ext, "get", "get", new Class<?>[]{String.class});
+        v8Ext.registerJavaMethod(ext, "set", "set", new Class<?>[]{String.class, String.class});
+        v8Ext.release();
     }
 
 
@@ -52,13 +62,12 @@ class JsEngine {
     //调用函数;可能传参数
     public String callJs(String fun, String... args) {
         V8Array params = new V8Array(engine);
-        for (String p : args) {
-            params.push(p.replaceAll("[^\\u0000-\\uFFFF]", ""));
-        }
-
-
 
         try {
+            for (String p : args) {
+                params.push(p.replaceAll("[^\\u0000-\\uFFFF]", ""));
+            }
+
             return engine.executeStringFunction(fun, params);
         } catch (Exception ex) {
             ex.printStackTrace();

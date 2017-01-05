@@ -32,7 +32,9 @@
         <Preference
             android:key="version_name"
             android:title="version" />
-        <Preference android:title="@string/sited_detail" />
+        <Preference
+            android:key="sited_version"
+            android:title="@string/sited_detail" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/disclaimer">
@@ -51,19 +53,4 @@
             android:title="@string/GNU_public_license" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/developer">
-        <Preference
-            android:summary="@string/developer_email"
-            android:title="John" />
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="@string/thanks">
-        <Preference
-            android:summary="https://github.com/noear/SiteD"
-            android:title="@string/thanks_to_DDCat">
-            <intent
-                android:action="android.intent.action.VIEW"
-                android:data="https://github.com/noear/SiteD" />
-        </Preference>
-    </PreferenceCategory>
 </PreferenceScreen>

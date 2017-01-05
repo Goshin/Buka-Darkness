@@ -1,8 +1,8 @@
 package org.noear.sited;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
-import android.text.TextUtils;
 import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -22,12 +22,16 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import cz.msebera.android.httpclient.Header;
+import cz.msebera.android.httpclient.HttpResponse;
+import cz.msebera.android.httpclient.impl.client.DefaultRedirectHandler;
+import cz.msebera.android.httpclient.protocol.HttpContext;
 
 
 /**
  * Created by yuety on 15/8/21.
  */
 class Util {
+    protected static final String NEXT_CALL = "CALL::";
     protected static final String defUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.10240";
 
     protected static __ICache cache = null;
@@ -46,27 +50,12 @@ class Util {
             return null;
     }
 
-    protected static String getElementVal(Element n, String tag) {
-        NodeList temp = n.getElementsByTagName(tag);
-        if (temp.getLength() > 0)
-            return temp.item(0).getTextContent();
-        else
-            return null;
-    }
-
     protected static Element getXmlroot(String xml) throws Exception {
         StringReader sr = new StringReader(xml);
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dombuild = factory.newDocumentBuilder();
 
         return dombuild.parse(new InputSource(sr)).getDocumentElement();
-    }
-
-    protected static int parseInt(String str) {
-        if (TextUtils.isEmpty(str))
-            return 0;
-        else
-            return Integer.parseInt(str);
     }
 
     //
@@ -81,83 +70,79 @@ class Util {
         }
     }
 
-    protected static void http(SdSource source, boolean isUpdate, String url, Map<String, String> params, int tag, SdNode config, HttpCallback callback) {
-        __CacheBlock block = null;
+    protected static void http(SdSource source, boolean isUpdate, HttpMessage msg) {
+
+        log(source, "Util.http", msg.url);
+
         String cacheKey2 = null;
-        if (params == null)
-            cacheKey2 = url;
+        String args = "";
+        if (msg.form == null)
+            cacheKey2 = msg.url;
         else {
             StringBuilder sb = new StringBuilder();
-            sb.append(url);
-            for (String key : params.keySet()) {
-                sb.append(key).append("=").append(params.get(key)).append(";");
+            sb.append(msg.url);
+            for (String key : msg.form.keySet()) {
+                sb.append(key).append("=").append(msg.form.get(key)).append(";");
             }
             cacheKey2 = sb.toString();
+            args = cacheKey2;
         }
+
         final String cacheKey = cacheKey2;
 
-        if (isUpdate == false && config.cache > 0) {
-            block = cache.get(cacheKey);
-        }
+        __CacheBlock block = null;
 
-        if (block != null) {
-            if (config.cache == 1 || block.seconds() <= config.cache) {
+        if (isUpdate == false && msg.config.cache > 0) {
+            block = cache.get(cacheKey);
+            if (block != null && block.isOuttime(msg.config) == false) {
                 final __CacheBlock block1 = block;
 
                 new Handler().postDelayed(() -> {
-                    Log.v("Util.incache.url", url);
-                    callback.run(1, tag, block1.value);
+                    log(source, "Util.incache.url", msg.url);
+                    msg.callback.run(1, msg, block1.value, null);
                 }, 100);
                 return;
             }
         }
 
-        doHttp(source, url, params, tag, config, block, (code, tag2, data) -> {
-            if (code == 1 && config.cache > 0) {
+        doHttp(source, msg, block, (code, msg2, data, url302) -> {
+            if (code == 1) {
                 cache.save(cacheKey, data);
             }
 
-            callback.run(code, tag2, data);
+            msg.callback.run(code, msg2, data, url302);
         });
+
+        source.DoTraceUrl(msg.url, args, msg.config);
     }
 
-    private static void doHttp(SdSource source, String url, Map<String, String> params, int tag, SdNode config, __CacheBlock cache, HttpCallback callback) {
-        AsyncHttpClient client = new AsyncHttpClient();
-        client.setUserAgent(source.ua());
-        client.setURLEncodingEnabled(url.indexOf(" ") > 0);
+    private static void doHttp(SdSource source, HttpMessage msg, __CacheBlock cache, HttpCallback callback) {
+        AsyncHttpClient client = new AsyncHttpClient(true, 80, 443);
 
-        if (config.isInCookie()) {
-            String cookies = config.cookies(url);
-            if (cookies != null) {
-                client.addHeader("Cookie", cookies);
-            }
+        client.setUserAgent(msg.ua);
+        client.setURLEncodingEnabled(msg.url.indexOf(" ") > 0);
+
+        for (String key : msg.header.keySet()) {
+            client.addHeader(key, msg.header.get(key));
         }
 
-        if (config.isInReferer()) {
-            client.addHeader("Referer", source.buildReferer(config, url));
-        }
+        __AsyncTag httpTag = new __AsyncTag();
 
-        if (TextUtils.isEmpty(config.header) == false) {
-            for (String kv : config.header.split(";")) {
-                String[] kv2 = kv.split("=");
-                if (kv2.length == 2) {
-                    client.addHeader(kv2[0], kv2[1]);
-                }
-            }
-        }
-
-        TextHttpResponseHandler responseHandler = new TextHttpResponseHandler(config.encode()) {
+        TextHttpResponseHandler responseHandler = new TextHttpResponseHandler(msg.encode) {
 
             @Override
-            public void onFailure(int statusCode, cz.msebera.android.httpclient.Header[] headers, String s, Throwable throwable) {
-                if (cache == null)
-                    callback.run(-2, tag, null);
+            public void onFailure(int statusCode, Header[] headers, String s, Throwable throwable) {
+
+                Util.log(source, "http.onFailure", throwable.getMessage(), throwable);
+
+                if (cache == null || cache.value == null)
+                    callback.run(-2, msg, null, null);
                 else
-                    callback.run(1, tag, cache.value);
+                    callback.run(1, msg, cache.value, httpTag.str0);
             }
 
             @Override
-            public void onSuccess(int statusCode, cz.msebera.android.httpclient.Header[] headers, String s) {
+            public void onSuccess(int statusCode, Header[] headers, String s) {
                 for (Header h1 : headers) {
                     if ("Set-Cookie".equals(h1.getName())) {
                         source.setCookies(h1.getValue());
@@ -165,22 +150,45 @@ class Util {
                     }
                 }
 
-                callback.run(1, tag, s);
+                callback.run(1, msg, s, httpTag.str0);
             }
         };
 
 
+        client.setEnableRedirects(true);
+        client.setRedirectHandler(new DefaultRedirectHandler() {
+            @Override
+            public boolean isRedirectRequested(HttpResponse response, HttpContext context) {
+                int statusCode = response.getStatusLine().getStatusCode();
+
+                if (statusCode == 302 || statusCode == 301) {
+                    httpTag.str0 = response.getFirstHeader("Location").getValue();
+
+                    if (httpTag.str0.startsWith("http") == false) {
+                        Uri uri = Uri.parse(msg.url);
+                        httpTag.str0 = uri.getScheme() + "://" + uri.getHost() + httpTag.str0;
+                    }
+
+                    Log.v("orgurl", msg.url);
+                    Log.v("302url", httpTag.str0);
+                }
+
+                return super.isRedirectRequested(response, context);
+            }
+        });
+
+
         try {
-            int idx = url.indexOf('#'); //去除hash，即#.*
+            int idx = msg.url.indexOf('#'); //去除hash，即#.*
             String url2 = null;
             if (idx > 0)
-                url2 = url.substring(0, idx);
+                url2 = msg.url.substring(0, idx);
             else
-                url2 = url;
+                url2 = msg.url;
 
-            if ("post".equals(config.method)) {
-                RequestParams postData = new RequestParams(params);
-                postData.setContentEncoding(config.encode());
+            if ("post".equals(msg.method)) {
+                RequestParams postData = new RequestParams(msg.form);
+                postData.setContentEncoding(msg.encode);
 
                 client.post(url2, postData, responseHandler);
             } else {
@@ -188,9 +196,9 @@ class Util {
             }
         } catch (Exception ex) {
             if (cache == null)
-                callback.run(-2, tag, null);
+                callback.run(-2, msg, null, null);
             else
-                callback.run(1, tag, cache.value);
+                callback.run(1, msg, cache.value, null);
         }
     }
 
@@ -230,7 +238,9 @@ class Util {
     //--------------------------------
     //
 
-    public static void log(SdSource source, SdNode node, String url, String json) {
+    public static void log(SdSource source, SdNode node, String url, String json, int tag) {
+        log(source, node.name, "tag=" + tag);
+
         if (url == null)
             log(source, node.name, "url=null");
         else
@@ -246,7 +256,7 @@ class Util {
         Log.v(tag, msg);
 
         if (SdApi._listener != null) {
-            SdApi._listener.run(source, tag, msg, null);
+            SdApi._listener.log(source, tag, msg, null);
         }
     }
 
@@ -254,8 +264,28 @@ class Util {
         Log.v(tag, msg, tr);
 
         if (SdApi._listener != null) {
-            SdApi._listener.run(source, tag, msg, tr);
+            SdApi._listener.log(source, tag, msg, tr);
         }
+    }
+
+    public static void set(SdSource source, String key, String val) {
+        Log.v("SiteD.set:", key + "=" + val);
+
+        if (SdApi._listener != null) {
+            SdApi._listener.set(source, key, val);
+        }
+    }
+
+    public static String get(SdSource source, String key) {
+        if (SdApi._listener != null) {
+            String temp = SdApi._listener.get(source, key);
+
+            Log.v("SiteD.get:", key + "=" + temp);
+
+            return temp;
+        }
+
+        return "";
     }
 
     //-------------
@@ -266,5 +296,77 @@ class Util {
 
     public static SdNodeSet createNodeSet(SdSource source) {
         return SdApi._factory.createNodeSet(source);
+    }
+
+    public static String toJson(Map<String, String> data) {
+        StringBuilder sb = new StringBuilder();
+
+        if (data != null) {
+            sb.append("{");
+
+            for (String k : data.keySet()) {
+                sb.append("\"").append(k).append("\"").append(":");
+                _WriteValue(sb, data.get(k));
+                sb.append(",");
+            }
+
+            if (sb.length() > 4) {
+                sb.deleteCharAt(sb.length() - 1);
+            }
+
+            sb.append("}");
+        }
+
+        return sb.toString();
+    }
+
+    private static final void _WriteValue(StringBuilder _Writer, String val) {
+
+        if (val == null) {
+            _Writer.append("null");
+        } else {
+            _Writer.append('\"');
+
+            int n = val.length();
+            char c;
+            for (int i = 0; i < n; i++) {
+                c = val.charAt(i);
+                switch (c) {
+                    case '\\':
+                        _Writer.append("\\\\"); //20110809
+                        break;
+
+                    case '\"':
+                        _Writer.append("\\\"");
+                        break;
+
+                    case '\n':
+                        _Writer.append("\\n");
+                        break;
+
+                    case '\r':
+                        _Writer.append("\\r");
+                        break;
+
+                    case '\t':
+                        _Writer.append("\\t");
+                        break;
+
+                    case '\f':
+                        _Writer.append("\\f");
+                        break;
+
+                    case '\b':
+                        _Writer.append("\\b");
+                        break;
+
+                    default:
+                        _Writer.append(c);
+                        break;
+                }
+            }
+
+            _Writer.append('\"');
+        }
     }
 }

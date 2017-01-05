@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.goshin.bukadarkness.database.DatabaseBase;
+import io.goshin.bukadarkness.sited.MangaSource;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -45,7 +46,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupToolbar() {
         Toolbar mToolbar = (Toolbar) findViewById(R.id.toolbar);
-        mToolbar.setTitle(getResources().getString(R.string.app_name));
+        if (mToolbar != null) {
+            mToolbar.setTitle(getResources().getString(R.string.app_name));
+        }
         setSupportActionBar(mToolbar);
     }
 
@@ -59,10 +62,14 @@ public class MainActivity extends AppCompatActivity {
         SettingsFragment settingsFragment = new SettingsFragment();
         adapter.addFragment(settingsFragment, getString(R.string.settings));
 
-        viewPager.setAdapter(adapter);
+        if (viewPager != null) {
+            viewPager.setAdapter(adapter);
+        }
 
         tabLayout = (TabLayout) findViewById(R.id.tabs);
-        tabLayout.setupWithViewPager(viewPager);
+        if (tabLayout != null) {
+            tabLayout.setupWithViewPager(viewPager);
+        }
     }
 
     public static class SettingsFragment extends PreferenceFragmentCompat {
@@ -84,6 +91,10 @@ public class MainActivity extends AppCompatActivity {
                 ));
             } catch (PackageManager.NameNotFoundException ignored) {
             }
+            getPreferenceManager().findPreference("sited_version").setTitle(getString(
+                    R.string.sited_detail,
+                    MangaSource.getEngineVersionName()
+            ));
         }
 
         @Override

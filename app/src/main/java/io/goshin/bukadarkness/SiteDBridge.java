@@ -1,18 +1,21 @@
 package io.goshin.bukadarkness;
 
+import android.annotation.SuppressLint;
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.PackageManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.goshin.bukadarkness.database.SourceSettingsDatabase;
 import io.goshin.bukadarkness.sited.MangaSource;
+import io.goshin.bukadarkness.sited.SourcePreference;
 
 public class SiteDBridge {
     public static HashMap<String, MangaSource> sources = new HashMap<>();
@@ -23,11 +26,26 @@ public class SiteDBridge {
         SiteDBridge.application = application;
     }
 
-    public static void loadSources(Context context) {
+    @SuppressLint("WorldReadableFiles")
+    @SuppressWarnings("deprecation")
+    public static void loadSources() throws IOException {
+        Context context;
+        try {
+            context = application.createPackageContext(SiteDBridge.class.getPackage().getName(), Context.CONTEXT_RESTRICTED);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+            return;
+        }
         sources = new HashMap<>();
-        String[] fileList = context.fileList();
-        for (String filename : fileList) {
+        SourcePreference sourcePreference = new SourcePreference(application);
+        if (!sourcePreference.isReadable()) {
+            throw new IOException("Shared Preference not readable");
+        }
+        for (String filename : sourcePreference.getSourceList()) {
             try {
+                if (filename.length() != 32) {
+                    continue;
+                }
                 FileInputStream fileInputStream = context.openFileInput(filename);
                 byte[] buffer = new byte[fileInputStream.available()];
                 if (fileInputStream.read(buffer) == -1) {
@@ -36,10 +54,10 @@ public class SiteDBridge {
                 String xml = new String(buffer);
                 fileInputStream.close();
 
-                if (SourceSettingsDatabase.getInstance().isEnabled(filename)) {
+                if (sourcePreference.isEnabled(filename)) {
                     MangaSource mangaSource = new MangaSource(application, xml);
                     sources.put(filename, mangaSource);
-                    if (SourceSettingsDatabase.getInstance().isSearchEnabled(filename)) {
+                    if (sourcePreference.isSearchEnabled(filename)) {
                         searchSources.put(filename, mangaSource);
                     }
                 }

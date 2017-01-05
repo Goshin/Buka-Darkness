@@ -1,45 +1,57 @@
 package io.goshin.bukadarkness.sited;
 
 import android.annotation.SuppressLint;
-import android.app.Service;
-import android.content.Intent;
-import android.os.Bundle;
+import android.app.Application;
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Handler;
-import android.os.IBinder;
+import android.os.HandlerThread;
 import android.os.Message;
-import android.os.Process;
 
-import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.noear.sited.SdApi;
 import org.noear.sited.SdLogListener;
 import org.noear.sited.SdNodeFactory;
-import org.noear.sited.SdSource;
 
-import java.io.BufferedReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.Reader;
 import java.io.StringWriter;
-import java.io.Writer;
-import java.lang.ref.WeakReference;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 
+import io.goshin.bukadarkness.Hook;
 import io.goshin.bukadarkness.SiteDBridge;
-import io.goshin.bukadarkness.database.DatabaseBase;
+import io.goshin.bukadarkness.sited.Handler.HandlerFactory;
+import io.goshin.bukadarkness.sited.Handler.RequestHandler;
 
-public class Server extends Service {
-    public static final int PORT = 2203;
+public class Server extends HandlerThread {
+    private static ProcessHandler processHandler;
     private static PrintWriter logWriter = null;
-    private ProcessHandler processHandler;
-    private ServerSocket serverSocket;
+    private static Server instance;
+    private Application application;
+
+    @SuppressLint("WorldReadableFiles")
+    @SuppressWarnings("SpellCheckingInspection")
+    private Server(Application app) {
+        super("DarknessHandlerThread");
+        application = app;
+
+        try {
+            Context remoteContext = application.createPackageContext("io.goshin.bukadarkness", Context.CONTEXT_RESTRICTED);
+            //noinspection deprecation
+            if (remoteContext.getSharedPreferences("pref", Context.MODE_WORLD_READABLE).getBoolean("verbose", false)) {
+                try {
+                    logWriter = new PrintWriter(new FileWriter(application.getFileStreamPath("error.log"), false));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+
+        SdApi.tryInit(new SdNodeFactory(), new SdLogListener() {
+        }, application.getExternalCacheDir());
+        SiteDBridge.setApplication(application);
+    }
 
     private static synchronized void log(String text) {
         if (logWriter != null) {
@@ -57,241 +69,72 @@ public class Server extends Service {
         }
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
 
-    /**
-     * Called by the system when the service is first created.  Do not call this method directly.
-     */
-    @SuppressLint("WorldReadableFiles")
-    @Override
-    public void onCreate() {
-        //noinspection deprecation
-        if (getSharedPreferences("pref", MODE_WORLD_READABLE).getBoolean("verbose", false)) {
-            try {
-                logWriter = new PrintWriter(new FileWriter(getFileStreamPath("error.log"), false));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+    public static void init(final Application application) {
+        if (instance != null) {
+            return;
         }
+        instance = new Server(application);
+        instance.start();
 
-        DatabaseBase.init(this);
-        processHandler = new ProcessHandler(this);
-        SdApi.tryInit(new SdNodeFactory(), new SdLogListener() {
-            @Override
-            public void run(SdSource source, String tag, String msg, Throwable tr) {
-            }
-        });
-        SiteDBridge.setApplication(getApplication());
-        new Thread(new Runnable() {
+        processHandler = new ProcessHandler();
+        processHandler.post(new Runnable() {
             @Override
             public void run() {
                 try {
-                    serverSocket = new ServerSocket(PORT);
-                    while (!serverSocket.isClosed()) {
-                        try {
-                            final Socket clientSocket = serverSocket.accept();
-                            new InputProcessThread(clientSocket).start();
-                        } catch (Exception e) {
-                            log(e);
-                        }
-                    }
-                } catch (Exception e) {
-                    log(e);
+                    SiteDBridge.loadSources();
+                } catch (IOException ignored) {
+                    Hook.getInstance().alert("读取订阅源列表失败，你可能需要打开一次 Buka Darkness 完成初始化。");
                 }
             }
-        }).start();
-        SiteDBridge.loadSources(this);
+        });
     }
 
-    /**
-     * Called by the system to notify a Service that it is no longer used and is being removed.  The
-     * service should clean up any resources it holds (threads, registered
-     * receivers, etc) at this point.  Upon return, there will be no more calls
-     * in to this Service object and it is effectively dead.  Do not call this method directly.
-     */
-    @Override
-    public void onDestroy() {
-        try {
-            serverSocket.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            android.os.Process.killProcess(Process.myPid());
-        }
+    public static boolean isOnDuty() {
+        return processHandler != null && instance.isAlive();
+    }
+
+    public static ProcessHandler getProcessHandler() {
+        return processHandler;
     }
 
     private static class ProcessHandler extends Handler {
-        private final WeakReference<Server> server;
-
-        public ProcessHandler(Server server) {
-            this.server = new WeakReference<>(server);
+        public ProcessHandler() {
+            super(instance.getLooper());
         }
 
-        @SuppressWarnings("SpellCheckingInspection")
         @Override
-        public void handleMessage(Message msg) {
-            if (server.get() == null) {
-                return;
-            }
-            final Socket clientSocket = (Socket) msg.obj;
-            Bundle bundle = msg.getData();
-            final MangaSource.Callback sendResponseCallback = new MangaSource.Callback() {
+        public void handleMessage(final Message msg) {
+            final Packet packet = (Packet) msg.obj;
+            MangaSource.Callback sendResponseCallback = new MangaSource.Callback() {
                 @Override
                 public void run(Object... objects) {
+                    if (packet.getStatus() == Packet.Status.COMPLITED) {
+                        return;
+                    }
                     String result = (String) objects[0];
                     if (result == null) {
                         result = "";
                     }
-                    try {
-                        Writer out = new OutputStreamWriter(clientSocket.getOutputStream(), "utf-8");
-                        out.write(URLEncoder.encode(result, "utf-8") + "\n");
-                        out.flush();
-                        clientSocket.close();
-                    } catch (Exception e) {
-                        log(e);
+                    synchronized (packet) {
+                        packet.setResponse(result);
+                        packet.notify();
                     }
                 }
             };
 
             try {
-                JSONObject params = new JSONObject(bundle.getString("params"));
-                final MangaSource mangaSource = SiteDBridge.sources.get(params.optString("fp"));
-                switch (params.optString("f").toLowerCase()) {
-                    case "func_getmangagroups":
-                    case "func_getcategory":
-                        sendResponseCallback.run(SiteDBridge.getGroupJson());
-                        break;
-                    case "func_getgroupitems":
-                        if (mangaSource == null) {
-                            clientSocket.close();
-                            break;
-                        }
-                        mangaSource.getHots(new MangaSource.Callback() {
-                            @Override
-                            public void run(Object... objects) {
-                                String result = objects[0] == null ? "" : (String) objects[0];
-                                MangaSource currentMangaSource = (MangaSource) objects[1];
-                                try {
-                                    JSONArray jsonArray = new JSONArray(result);
-                                    for (int i = 0; i < jsonArray.length(); i++) {
-                                        JSONObject book = jsonArray.getJSONObject(i);
-                                        book.put("sourceID", SiteDBridge.filenameOfMangaSource(currentMangaSource));
-                                        book.put("sourceName", currentMangaSource.title);
-                                    }
-                                    sendResponseCallback.run(jsonArray.toString());
-                                } catch (JSONException e) {
-                                    log(e);
-                                    sendResponseCallback.run("[]");
-                                }
-                            }
-                        });
-                        break;
-                    case "func_search":
-                        MangaSource.Callback searchCallback = new MangaSource.Callback() {
-                            private int sourceCount = SiteDBridge.searchSources.size();
-                            private JSONArray searchResult = new JSONArray();
+                JSONObject params = packet.getRequest();
+                MangaSource mangaSource = SiteDBridge.sources.get(params.optString("fp"));
 
-                            @Override
-                            public void run(Object... objects) {
-                                String result = objects[0] == null ? "" : (String) objects[0];
-                                MangaSource currentMangaSource = (MangaSource) objects[1];
-                                try {
-                                    JSONArray jsonArray = new JSONArray(result);
-                                    for (int i = 0; i < jsonArray.length(); i++) {
-                                        JSONObject book = jsonArray.getJSONObject(i);
-                                        book.put("sourceID", SiteDBridge.filenameOfMangaSource(currentMangaSource));
-                                        book.put("sourceName", currentMangaSource.title);
-                                        searchResult.put(book);
-                                    }
-                                } catch (JSONException e) {
-                                    log(e);
-                                }
-                                if (sourceCount-- == 1) {
-                                    sendResponseCallback.run(searchResult.toString());
-                                }
-                            }
-                        };
-                        if (SiteDBridge.searchSources.size() == 0) {
-                            sendResponseCallback.run("[]");
-                        } else {
-                            for (MangaSource searchMangaSource : SiteDBridge.searchSources.values()) {
-                                try {
-                                    searchMangaSource.search(params.optString("text"), searchCallback);
-                                } catch (Exception e) {
-                                    log(e);
-                                    searchCallback.run("", null);
-                                }
-                            }
-                        }
-                        break;
-                    case "func_getdetail":
-                        if (mangaSource == null) {
-                            clientSocket.close();
-                            break;
-                        }
-                        mangaSource.getBookDetail(params.optString("url"), sendResponseCallback);
-                        break;
-                    case "get_index":
-                        if (mangaSource == null) {
-                            clientSocket.close();
-                            break;
-                        }
-                        mangaSource.getSection(params.optString("url"), sendResponseCallback);
-                        break;
-                    default:
-                        clientSocket.close();
-                }
+                RequestHandler requestHandler = HandlerFactory.getHandler(params);
+                requestHandler.process(mangaSource, sendResponseCallback, params);
             } catch (Throwable e) {
                 log(e);
-                try {
-                    if (!clientSocket.isClosed()) {
-                        sendResponseCallback.run("");
-                        clientSocket.close();
-                    }
-                } catch (Exception ignored) {
-                }
+                sendResponseCallback.run("");
             }
 
         }
     }
 
-    private class InputProcessThread extends Thread {
-        /**
-         * Constructs a new {@code Thread} with no {@code Runnable} object and a
-         * newly generated name. The new {@code Thread} will belong to the same
-         * {@code ThreadGroup} as the {@code Thread} calling this constructor.
-         *
-         * @see ThreadGroup
-         * @see Runnable
-         */
-        public InputProcessThread(final Socket clientSocket) {
-            super(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Reader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), "utf-8"));
-                        StringBuilder inputStringBuffer = new StringBuilder();
-                        int c;
-                        while ((c = in.read()) != -1) {
-                            if (((char) c) == '\n')
-                                break;
-                            inputStringBuffer.append((char) c);
-                        }
-                        final String params = URLDecoder.decode(inputStringBuffer.toString(), "utf-8");
-                        Bundle bundle = new Bundle();
-                        bundle.putString("params", params);
-                        Message message = new Message();
-                        message.setData(bundle);
-                        message.what = 1;
-                        message.obj = clientSocket;
-                        processHandler.sendMessage(message);
-                    } catch (Exception e) {
-                        log(e);
-                    }
-                }
-            });
-        }
-    }
 }

@@ -1,12 +1,17 @@
 package io.goshin.bukadarkness;
 
 import android.app.Activity;
-import android.content.ComponentName;
+import android.app.AlertDialog;
+import android.app.Application;
 import android.content.Context;
-import android.content.Intent;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,10 +26,12 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ByteArrayEntity;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
@@ -47,6 +54,7 @@ import io.goshin.bukadarkness.adapter.Utils;
 import io.goshin.bukadarkness.database.CoverMapDatabase;
 import io.goshin.bukadarkness.database.DatabaseBase;
 import io.goshin.bukadarkness.database.ImageReferrerMapDatabase;
+import io.goshin.bukadarkness.sited.Server;
 
 @SuppressWarnings("deprecation")
 public class Hook implements IXposedHookLoadPackage {
@@ -54,7 +62,9 @@ public class Hook implements IXposedHookLoadPackage {
     public static SharedPreferences bukaPref;
 
     public static boolean verbose = false;
+    private static Hook instance;
     private Activity activity;
+    private Application application;
     private Handler mainThreadHandler;
 
     public static void log(String text) {
@@ -69,6 +79,9 @@ public class Hook implements IXposedHookLoadPackage {
         }
     }
 
+    public static Hook getInstance() {
+        return instance;
+    }
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
@@ -76,6 +89,7 @@ public class Hook implements IXposedHookLoadPackage {
             return;
         }
 
+        instance = this;
         loadPreference();
         XposedHelpers.findAndHookMethod("org.apache.http.impl.client.AbstractHttpClient", loadPackageParam.classLoader, "execute", HttpUriRequest.class, new XC_MethodHook() {
             private JSONObject getParam(HttpPost request) throws Throwable {
@@ -199,58 +213,92 @@ public class Hook implements IXposedHookLoadPackage {
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 URL url = ((URLConnection) param.thisObject).getURL();
                 log("URLConnection getInputStream " + url);
-                if (!url.toString().matches(".*?/req\\d+\\.php.*")) {
-                    return;
-                }
+                if (url.toString().matches(".*?/req\\d+\\.php.*")) {
 
+                    HashMap<String, String> params = getParams(url);
+                    Index index = new Index(params.get("mid"), params.get("cid"));
+                    if (!index.match()) {
+                        return;
+                    }
+                    param.setResult(Utils.indexEncode(
+                            index.getClip(),
+                            index.getBase(),
+                            Integer.parseInt(params.get("mid")),
+                            Integer.parseInt(params.get("cid"))
+                    ));
+                } else if (url.toString().matches(".*?baidu\\.com/\\?buka.*")) {
+                    HashMap<String, String> params = getParams(url);
+                    if (params.get("buka").equals("group_cover")) {
+                        String initialChar = params.get("name").substring(0, 1);
+                        Bitmap bitmap = Bitmap.createBitmap(156, 156, Bitmap.Config.RGB_565);
+                        Canvas canvas = new Canvas(bitmap);
+                        canvas.drawColor(Color.parseColor("#F5F5F5"));
+
+                        Paint textPaint = new Paint();
+                        textPaint.setColor(Color.parseColor("#727272"));
+                        textPaint.setTextAlign(Paint.Align.CENTER);
+                        textPaint.setTextSize(80);
+                        canvas.drawText(
+                                initialChar,
+                                canvas.getWidth() / 2,
+                                (int) ((canvas.getHeight() / 2) - ((textPaint.descent() + textPaint.ascent()) / 2)),
+                                textPaint
+                        );
+
+                        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+                        byte[] byteArray = stream.toByteArray();
+
+                        param.setResult(new ByteArrayInputStream(byteArray));
+                    }
+                }
+            }
+
+            @NonNull
+            private HashMap<String, String> getParams(URL url) throws URISyntaxException {
                 HashMap<String, String> params = new HashMap<>();
                 for (NameValuePair p : URLEncodedUtils.parse(url.toURI(), "UTF-8")) {
                     params.put(p.getName(), p.getValue());
                 }
-                Index index = new Index(params.get("mid"), params.get("cid"));
-                if (!index.match()) {
-                    return;
-                }
-                param.setResult(Utils.indexEncode(index.getClip(), index.getBase(), Integer.parseInt(params.get("mid")), Integer.parseInt(params.get("cid"))));
+                return params;
             }
         };
 
         final int apiLevel = Build.VERSION.SDK_INT;
+        String HTTPURLConnectionImplClassName;
         if (apiLevel >= 23) {
             //noinspection SpellCheckingInspection
-            XposedHelpers.findAndHookMethod("com.android.okhttp.internal.huc.HttpURLConnectionImpl", loadPackageParam.classLoader, "getInputStream", URLGetInputStreamHook);
-            //noinspection SpellCheckingInspection
-            XposedHelpers.findAndHookMethod("com.android.okhttp.internal.huc.HttpURLConnectionImpl", loadPackageParam.classLoader, "connect", URLConnectHook);
+            HTTPURLConnectionImplClassName = "com.android.okhttp.internal.huc.HttpURLConnectionImpl";
         } else if (apiLevel >= 19) {
             //noinspection SpellCheckingInspection
-            XposedHelpers.findAndHookMethod("com.android.okhttp.internal.http.HttpURLConnectionImpl", loadPackageParam.classLoader, "getInputStream", URLGetInputStreamHook);
-            //noinspection SpellCheckingInspection
-            XposedHelpers.findAndHookMethod("com.android.okhttp.internal.http.HttpURLConnectionImpl", loadPackageParam.classLoader, "connect", URLConnectHook);
+            HTTPURLConnectionImplClassName = "com.android.okhttp.internal.http.HttpURLConnectionImpl";
         } else {
             //noinspection SpellCheckingInspection
-            XposedHelpers.findAndHookMethod("libcore.net.http.HttpURLConnectionImpl", loadPackageParam.classLoader, "getInputStream", URLGetInputStreamHook);
-            //noinspection SpellCheckingInspection
-            XposedHelpers.findAndHookMethod("libcore.net.http.HttpURLConnectionImpl", loadPackageParam.classLoader, "connect", URLConnectHook);
+            HTTPURLConnectionImplClassName = "libcore.net.http.HttpURLConnectionImpl";
         }
+        XposedHelpers.findAndHookMethod(HTTPURLConnectionImplClassName, loadPackageParam.classLoader, "getInputStream", URLGetInputStreamHook);
+        XposedHelpers.findAndHookMethod(HTTPURLConnectionImplClassName, loadPackageParam.classLoader, "connect", URLConnectHook);
 
 
-        final Intent serviceIntent = new Intent("BukaDarknessServer");
-        //noinspection SpellCheckingInspection
-        serviceIntent.setComponent(new ComponentName("io.goshin.bukadarkness", "io.goshin.bukadarkness.sited.Server"));
-        XC_MethodHook startServiceHook = new XC_MethodHook() {
+        XC_MethodHook onAppCreateHook = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                application = (Application) param.thisObject;
                 mainThreadHandler = new Handler();
+                DatabaseBase.init(application);
+                bukaPref = application.getSharedPreferences(application.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+                Server.init(application);
+            }
+        };
+        XC_MethodHook onActivityCreateHook = new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 activity = (Activity) param.thisObject;
-                activity.startService(serviceIntent);
-                DatabaseBase.init(activity);
-                bukaPref = activity.getSharedPreferences(activity.getPackageName() + "_preferences", Context.MODE_PRIVATE);
             }
         };
         XC_MethodHook stopServiceHook = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                ((Activity) param.thisObject).stopService(serviceIntent);
             }
         };
         XC_MethodHook onMoveToBackHook = new XC_MethodHook() {
@@ -273,7 +321,8 @@ public class Hook implements IXposedHookLoadPackage {
         } catch (XposedHelpers.ClassNotFoundError ignored) {
             mainActivityClass = XposedHelpers.findClass("cn.ibuka.manga.md.activity.ActivityMain", loadPackageParam.classLoader);
         }
-        XposedHelpers.findAndHookMethod(mainActivityClass, "onCreate", Bundle.class, startServiceHook);
+        XposedHelpers.findAndHookMethod(packageName + ".BukaApp", loadPackageParam.classLoader, "onCreate", onAppCreateHook);
+        XposedHelpers.findAndHookMethod(mainActivityClass, "onCreate", Bundle.class, onActivityCreateHook);
         XposedHelpers.findAndHookMethod(mainActivityClass, "onDestroy", stopServiceHook);
         XposedHelpers.findAndHookMethod(Activity.class, "moveTaskToBack", "boolean", onMoveToBackHook);
 
@@ -324,7 +373,7 @@ public class Hook implements IXposedHookLoadPackage {
         config.putBoolean("splitLinkedPage", pref.getBoolean("split_linked_page", true));
     }
 
-    private void toast(final String text) {
+    public void toast(final String text) {
         if (mainThreadHandler == null) {
             return;
         }
@@ -334,6 +383,31 @@ public class Hook implements IXposedHookLoadPackage {
                 if (activity != null) {
                     Toast.makeText(activity, text, Toast.LENGTH_LONG).show();
                 }
+            }
+        });
+    }
+
+    public void alert(final String text) {
+        if (mainThreadHandler == null) {
+            return;
+        }
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (activity == null) {
+                    mainThreadHandler.postDelayed(this, 300);
+                    return;
+                }
+                new AlertDialog.Builder(activity)
+                        .setTitle("Buka Darkness")
+                        .setMessage(text)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        })
+                        .show();
             }
         });
     }

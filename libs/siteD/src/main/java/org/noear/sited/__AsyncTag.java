@@ -9,5 +9,8 @@ class __AsyncTag {
     public int total=0;
     public int value=0;
 
-//    public Act0 action;
+    public SdSourceCallback action;
+
+    //-------
+    public String str0 = null;
 }

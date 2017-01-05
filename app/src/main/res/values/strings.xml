@@ -1,19 +1,20 @@
 <resources>
     <string name="app_name">Buka Darkness</string>
 
-    <string name="addSourceTips">请输入 多多猫 SiteD 源插件的 URL</string>
-    <string name="Sources">源插件</string>
+    <string name="addSourceTips">请输入订阅源插件的 URL</string>
+    <string name="Sources">订阅源</string>
     <string name="settings">设置</string>
-    <string name="add_source">添加源</string>
+    <string name="add_source">添加订阅源</string>
     <string name="cancel">取消</string>
     <string name="ok">确定</string>
-    <string name="add_source_failed">添加源插件失败</string>
-    <string name="add_source_success">添加源插件成功，重启布卡后生效</string>
+    <string name="add_source_failed">添加订阅源失败</string>
+    <string name="add_source_success">添加订阅源成功，重启布卡后生效</string>
     <string name="network_error">网络错误</string>
-    <string name="source_type_error">不受支持的插件类型，需要为漫画插件</string>
+    <string name="source_type_error">不受支持的订阅源插件类型，需要为漫画插件</string>
+    <string name="source_restricted">插件受限</string>
     <string name="loading_source">正在加载插件</string>
     <string name="loading">正在加载</string>
-    <string name="delete_source">确认删除该源插件？</string>
+    <string name="delete_source">确认删除该订阅源？</string>
     <string name="author">\@%1$s</string>
     <string name="upgrading">正在升级</string>
     <string name="enable_search">启用搜索</string>
@@ -30,15 +31,11 @@
     <string name="split_linked_page_summary">自动切分双页漫画，切页方向与阅读方向一致。</string>
     <string name="version">版本</string>
     <string name="version_detail">Beta %1$s 试验性版本</string>
-    <string name="sited_detail">插件引擎: SiteD v13</string>
+    <string name="sited_detail">内容重排版引擎 v%1$s</string>
     <string name="disclaimer">声明</string>
     <string name="only_for_testing_purposes">软件仅用作个人学习测试使用</string>
     <string name="test_only">仅供测试</string>
-    <string name="source_code">源代码</string>
+    <string name="source_code">项目托管</string>
     <string name="publish_under_GPLv3">软件及源代码基于 GPLv3 协议发布</string>
     <string name="GNU_public_license">GNU 通用公共许可协议</string>
-    <string name="developer">作者</string>
-    <string name="developer_email">githubjohn@gmail.com\n正式的建议和反馈请在 GitHub 提交 issue</string>
-    <string name="thanks">致谢</string>
-    <string name="thanks_to_DDCat">多多猫 SiteD 及作者 @noear</string>
 </resources>

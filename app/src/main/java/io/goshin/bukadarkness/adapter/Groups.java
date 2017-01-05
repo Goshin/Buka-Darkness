@@ -3,6 +3,8 @@ package io.goshin.bukadarkness.adapter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.net.URLEncoder;
+
 import io.goshin.bukadarkness.MangaAdapter;
 import io.goshin.bukadarkness.database.GroupMapDatabase;
 import io.goshin.bukadarkness.sited.Client;
@@ -38,6 +40,9 @@ public class Groups extends MangaAdapter {
             group.put("gid", gid);
             group.put("gname", name);
             group.put("param", gid);
+            String coverUrl = "http://www.baidu.com/?buka=group_cover&name=" + URLEncoder.encode(name, "UTF-8");
+            group.put("logo", coverUrl);
+            group.put("logo2", coverUrl);
             if (originalResult.getJSONArray("groups").getJSONObject(0).isNull("type")) {
                 originalResult.getJSONArray("groups").put(group);
             } else {

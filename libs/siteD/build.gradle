@@ -6,7 +6,7 @@ android {
     buildToolsVersion '23.0.2'
     defaultConfig {
         minSdkVersion 16
-        targetSdkVersion 22
+        targetSdkVersion 21
         versionCode 11
         versionName "0.0.11"
     }
@@ -22,14 +22,18 @@ android {
     }
     productFlavors {
     }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
 }
 
 
 dependencies {
     compile 'com.loopj.android:android-async-http:1.4.9'
-    compile 'com.eclipsesource.j2v8:j2v8:3.1.6@aar'
+    compile files('libs/j2v8.jar')
 }
-
 
 
 buildscript {

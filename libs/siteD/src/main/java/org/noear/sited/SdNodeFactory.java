@@ -1,7 +1,5 @@
 package org.noear.sited;
 
-import android.app.Application;
-
 /**
  * Created by yuety on 16/2/1.
  */

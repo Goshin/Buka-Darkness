@@ -2,7 +2,10 @@ package io.goshin.bukadarkness.adapter;
 
 import org.json.JSONObject;
 
+import java.net.URLEncoder;
+
 import io.goshin.bukadarkness.MangaAdapter;
+import io.goshin.bukadarkness.database.GroupMapDatabase;
 import io.goshin.bukadarkness.database.MangaMapDatabase;
 
 public class Comments extends MangaAdapter {
@@ -18,6 +21,8 @@ public class Comments extends MangaAdapter {
             return originalResult.toString();
         }
 
+        String groupFilename = MangaMapDatabase.getInstance().getFilename(params.optString("mid"));
+        String sourceName = GroupMapDatabase.getInstance().getName(groupFilename);
         return "{\n" +
                 "    \"ret\": 0,\n" +
                 "    \"postrestrict\": 1,\n" +
@@ -38,7 +43,7 @@ public class Comments extends MangaAdapter {
                 "            \"top\": \"0\",\n" +
                 "            \"ustatus\": \"0\",\n" +
                 "            \"name\": \"Buka Darkness\",\n" +
-                "            \"head\": \"http://i.imgur.com/iMjdpW4.png\",\n" +
+                "            \"head\": \"http://www.baidu.com/?buka=group_cover&name=" + URLEncoder.encode(sourceName, "UTF-8") + "\",\n" +
                 "            \"gender\": \"1\",\n" +
                 "            \"v\": \"\",\n" +
                 "            \"tdiff\": 1869,\n" +

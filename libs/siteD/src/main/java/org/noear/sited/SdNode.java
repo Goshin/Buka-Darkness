@@ -8,7 +8,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,77 +19,96 @@ import java.util.regex.Pattern;
 /**
  * Created by yuety on 15/8/2.
  */
-public class SdNode implements ISdNode{
+public class SdNode implements ISdNode {
 
-    public SdNode(SdSource source){
-        this.source = source;
-    }
-
-    protected void OnDidInit(){
-
-    }
-
-
-    public int nodeType(){return 1;}
     public final SdAttributeList attrs = new SdAttributeList();
-
+    public final SdSource source;
     //info
     public String name; //节点名称
+    public String key; //自定义关键字
     public String title;//标题
     public String url; //url
+    public String txt; //txt//一用于item
     public String logo; //logo
     public String expr;
     public String group;
-
+    public String btn;
+    //数据更新方式
+    public int update;
+    //ext prop (for post)
+    public String args;
     protected String lib;
-
-
-    //http
-    public String header;   //http header 头需求: cookies|accept
     protected String method;//http method
-
-    private String _encode;   //http 编码
-    private String _ua;     //http ua
-
-    public String jsTag="";//传递给js函数的扩展参数
-
     //cache
     protected int cache=1;//单位为秒(0不缓存；1不限时间)
-
     //parse
     protected String parse; //解析函数
     protected String parseUrl; //解析出真正在请求的Url
-
     //build
     protected String buildArgs;
     protected String buildUrl;
-    protected String buildRef;//
-
+    protected String buildRef;
+    protected String buildHeader;
     //add prop for search or tag
     protected String addCookie; //需要添加的关键字
     protected String addKey; //需要添加的关键字
     protected int    addPage;//需要添加的页数值
-
-
-    //ext prop (for post)
-    public String args;
-
-    public final SdSource source;
-
+    private int _dtype;
+    private int _btype;
+    //http
+    private String header;   //http header 头需求: cookies|accept
+    private String _encode;   //http 编码
+    private String _ua;     //http ua
     private boolean _isEmpty;
-    public boolean isEmpty(){
+    //下属项目
+    private List<SdNode> _items;
+    //下属数据节点
+    private List<SdNode> _adds;
+
+    public SdNode(SdSource source) {
+        this.source = source;
+    }
+
+    protected void OnDidInit() {
+
+    }
+
+    public int dtype() {
+        if (_dtype > 0)
+            return _dtype;
+        else {
+            return source.body.dtype();
+        }
+    }
+
+    public int btype() {
+        if (_btype > 0)
+            return _btype;
+        else
+            return dtype();
+    }
+
+    public int nodeType() {
+        return 1;
+    }
+
+    public String nodeName() {
+        return name;
+    }
+
+    public SdNode nodeMatch(String url) {
+        return this;
+    }
+
+    @Override
+    public boolean isEmpty() {
         return _isEmpty;
     }
 
-
-    //下属项目
-    private List<SdNode> _items;
     public List<SdNode> items(){
         return _items;
     }
 
-    //下属数据节点
-    private List<SdNode> _adds;
     public List<SdNode> adds(){
         return _adds;
     }
@@ -98,6 +120,11 @@ public class SdNode implements ISdNode{
             return false;
         else
             return true;
+    }
+
+    //是否有分页
+    public boolean hasPaging() {
+        return hasMacro() || TextUtils.isEmpty(buildUrl) == false || "post".equals(method);
     }
 
     public boolean isMatch(String url){
@@ -163,15 +190,14 @@ public class SdNode implements ISdNode{
             return _encode;
     }
 
-
-    //获取referer url
-    public String referer(String uri) {
-        return source.buildReferer(this, uri);
-    }
-
     //获取cookies
     public String cookies(String uri) {
         String cookies = source.cookies();
+
+
+        if (attrs.contains("buildCookie")) {
+            cookies = source.callJs(this, "buildCookie", uri, (cookies == null ? "" : cookies));
+        }
 
         if (TextUtils.isEmpty(addCookie) == false) {
             if (TextUtils.isEmpty(cookies)) {
@@ -187,7 +213,7 @@ public class SdNode implements ISdNode{
     protected SdNode buildForNode(Element cfg) {
         _isEmpty = (cfg == null);
 
-        if (cfg != null) {
+        if (_isEmpty == false) {
 
             this.name = cfg.getTagName();//默认为标签名
 
@@ -197,13 +223,21 @@ public class SdNode implements ISdNode{
                 attrs.set(att.getNodeName(), att.getNodeValue());
             }
 
+            _dtype = attrs.getInt("dtype");
+            _btype = attrs.getInt("btype");
+
+            this.key = attrs.getString("key");
             this.title   = attrs.getString("title");
             this.method  = attrs.getString("method","get");
             this.parse   = attrs.getString("parse");
             this.parseUrl= attrs.getString("parseUrl");
             this.url     = attrs.getString("url");
+            this.txt = attrs.getString("txt");//
             this.lib     = attrs.getString("lib");
+            this.btn = attrs.getString("btn");
             this.expr    = attrs.getString("expr");
+
+            this.update = attrs.getInt("update", 0);
 
             this._encode = attrs.getString("encode");
             this._ua     = attrs.getString("ua");
@@ -212,14 +246,41 @@ public class SdNode implements ISdNode{
             this.header = attrs.getString("header","");
 
             this.buildArgs = attrs.getString("buildArgs");
-            this.buildRef  = attrs.getString("buildRef");
-            this.buildUrl  = attrs.getString("buildUrl");
+            this.buildRef = attrs.getString("buildRef");
+            this.buildUrl = attrs.getString("buildUrl");
+            this.buildHeader = attrs.getString("buildHeader");
+
 
             this.args    = attrs.getString("args");
 
             this.addCookie  = attrs.getString("addCookie");
             this.addKey     = attrs.getString("addKey");
             this.addPage    = attrs.getInt("addPage");
+
+            {
+                String temp = attrs.getString("cache");
+                if (TextUtils.isEmpty(temp) == false) {
+                    int len = temp.length();
+                    if (len == 1) {
+                        cache = Integer.parseInt(temp);
+                    } else if (len > 1) {
+                        cache = Integer.parseInt(temp.substring(0, len - 1));
+
+                        String p = temp.substring(len - 1);
+                        switch (p) {
+                            case "d":
+                                cache = cache * 24 * 60 * 60;
+                                break;
+                            case "h":
+                                cache = cache * 60 * 60;
+                                break;
+                            case "m":
+                                cache = cache * 60;
+                                break;
+                        }
+                    }
+                }
+            }
 
             if (cfg.hasChildNodes()) {
                 _items = new ArrayList<SdNode>();
@@ -261,10 +322,14 @@ public class SdNode implements ISdNode{
 
         this.name    = p.name;
 
+        this.key = attrs.getString("key");
         this.title   = attrs.getString("title");//可能为null
         this.group   = attrs.getString("group");
         this.url     = attrs.getString("url");//
+        this.txt = attrs.getString("txt");//
         this.lib     = attrs.getString("lib");
+        this.btn = attrs.getString("btn");
+        this.expr = attrs.getString("expr");
         this.logo    = attrs.getString("logo");
         this._encode = attrs.getString("encode");
 
@@ -279,18 +344,149 @@ public class SdNode implements ISdNode{
             attrs.set(att.getNodeName(), att.getNodeValue());
         }
 
+        _dtype = attrs.getInt("dtype");
+        _btype = attrs.getInt("btype");
+
         this.name = cfg.getTagName();//默认为标签名
+
+        this.title = attrs.getString("title");//可能为null
+
+        this.key = attrs.getString("key");
+        this.btn = attrs.getString("btn");
+        this.txt = attrs.getString("txt");//
 
         this.method  = attrs.getString("method");
         this._encode = attrs.getString("encode");
         this._ua     = attrs.getString("ua");
 
-        //--------
-        this.title    = attrs.getString("title");//可能为null
-        this.parse    = attrs.getString("parse");
-        this.buildUrl = attrs.getString("buildUrl");
+        this.url = attrs.getString("url");
+        this.args = attrs.getString("args");
+        this.header = attrs.getString("header", "");
+
+        this.buildArgs = attrs.getString("buildArgs");
         this.buildRef = attrs.getString("buildRef");
+        this.buildUrl = attrs.getString("buildUrl");
+        this.buildHeader = attrs.getString("buildHeader");
+
+        //--------
+        this.parseUrl = attrs.getString("parseUrl");
+        this.parse    = attrs.getString("parse");
+
 
         return this;
     }
+
+    //
+    //=======================================
+    //
+
+    public String getArgs(String url, String key, int page) {
+        if (TextUtils.isEmpty(this.buildArgs))
+            return this.args;
+        else
+            return source.js.callJs(this.buildArgs, url, key, page + "");
+    }
+
+    public String getArgs(String url, int page) {
+        if (TextUtils.isEmpty(this.buildArgs))
+            return this.args;
+        else
+            return source.js.callJs(this.buildArgs, url, page + "");
+    }
+
+    public String getArgs(String url, Map<String, String> data) {
+        if (TextUtils.isEmpty(this.buildArgs))
+            return this.args;
+        else
+            return source.js.callJs(this.buildArgs, url, Util.toJson(data));
+    }
+
+    public String getUrl() {
+        if (TextUtils.isEmpty(this.buildUrl))
+            return this.url;
+        else
+            return source.js.callJs(this.buildUrl, this.url);
+    }
+
+    public String getUrl(String url) {
+        if (TextUtils.isEmpty(this.buildUrl))
+            return url;
+        else
+            return source.js.callJs(this.buildUrl, url);
+    }
+
+    public String getUrl(String url, Map<String, String> args) {
+        if (TextUtils.isEmpty(this.buildUrl))
+            return url;
+        else {
+            if (args == null)
+                return source.js.callJs(this.buildUrl, url);
+            else
+                return source.js.callJs(this.buildUrl, url, Util.toJson(args));
+        }
+    }
+
+    public String getUrl(String url, Integer page) {
+        if (TextUtils.isEmpty(this.buildUrl))
+            return url;
+        else {
+            return source.js.callJs(this.buildUrl, url, page + "");
+        }
+    }
+
+    public String getUrl(String url, String key, Integer page) {
+        if (TextUtils.isEmpty(this.buildUrl))
+            return url;
+        else {
+            return source.js.callJs(this.buildUrl, url, key, page + "");
+        }
+    }
+
+    public String getReferer(String url) {
+        if (TextUtils.isEmpty(this.buildRef))
+            return url;
+        else
+            return source.js.callJs(this.buildRef, url);
+    }
+
+    public String getHeader(String url) {
+        if (TextUtils.isEmpty(buildHeader))
+            return header;
+        else
+            return source.js.callJs(buildHeader, url);
+    }
+
+    public Map<String, String> getFullHeader(String url) {
+        Map<String, String> list = new HashMap();
+        if (isInCookie()) {
+            String cookies = cookies(url);
+            if (cookies != null) {
+                list.put("Cookie", cookies);
+            }
+        }
+
+        if (isInReferer()) {
+            list.put("Referer", getReferer(url));
+        }
+
+        if (isEmptyHeader() == false) {
+            for (String kv : getHeader(url).split(";")) {
+                String[] kv2 = kv.split("=");
+                if (kv2.length == 2) {
+                    list.put(kv2[0], kv2[1]);
+                }
+            }
+        }
+
+        return list;
+    }
+
+    public boolean isEmptyUrl() {
+        return TextUtils.isEmpty(buildUrl) && TextUtils.isEmpty(url);
+    }
+
+    public boolean isEmptyHeader() {
+        return TextUtils.isEmpty(buildHeader) && TextUtils.isEmpty(header);
+    }
+
 }

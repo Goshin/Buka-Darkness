@@ -11,14 +11,14 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.security.MessageDigest;
 import java.util.Date;
 
 class __FileCache implements __ICache {
     final File dir;
 
     public __FileCache(Context context, String block) {
-        File _root = null;
+        File _root = SdApi._cacheRoot;
+
         if (_root == null) {
             _root = context.getExternalFilesDir(null);
         }
@@ -33,6 +33,21 @@ class __FileCache implements __ICache {
         }
     }
 
+    //--------
+    public static String toString(File is) throws IOException {
+        BufferedReader in = new BufferedReader(new FileReader(is));
+        return doToString(in);
+    }
+
+    static String doToString(BufferedReader in) throws IOException {
+        StringBuffer buffer = new StringBuffer();
+        String line = "";
+        while ((line = in.readLine()) != null) {
+            buffer.append(line).append("\r\n");
+        }
+        return buffer.toString();
+    }
+
     File getFile(String key) {
         String key_md5 = Util.md5(key);
         String path = key_md5.substring(0, 2);
@@ -43,7 +58,6 @@ class __FileCache implements __ICache {
 
         return new File(dir2, key_md5);
     }
-
 
     public void save(String key, String data){
         File file = getFile(key);
@@ -87,22 +101,6 @@ class __FileCache implements __ICache {
     public boolean isCached(String key) {
         File file = getFile(key);
         return file.exists();
-    }
-
-    //--------
-    public static String toString(File is) throws IOException
-    {
-        BufferedReader in = new BufferedReader(new FileReader(is));
-        return doToString(in);
-    }
-
-    static String doToString(BufferedReader in) throws IOException{
-        StringBuffer buffer = new StringBuffer();
-        String line = "";
-        while ((line = in.readLine()) != null){
-            buffer.append(line).append("\r\n");
-        }
-        return buffer.toString();
     }
 }
 

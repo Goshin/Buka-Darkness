@@ -1,42 +1,36 @@
 package io.goshin.bukadarkness.sited;
 
+import android.os.Message;
+
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.net.UnknownHostException;
+import java.io.IOException;
+import java.net.ConnectException;
 
 public class Client {
-    public static String request(JSONObject params) throws Throwable {
-        InetAddress localAddress;
-        try {
-            localAddress = InetAddress.getLocalHost();
-        } catch (UnknownHostException ignored) {
-            localAddress = InetAddress.getByName("127.0.0.1");
+    public static String request(JSONObject params) throws IOException {
+        if (!Server.isOnDuty()) {
+            throw new ConnectException();
         }
-        Socket socket = new Socket(localAddress, Server.PORT);
-        Writer out = new OutputStreamWriter(socket.getOutputStream(), "utf-8");
-        out.write(URLEncoder.encode(params.toString(), "utf-8") + "\n");
-        out.flush();
-        Reader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "utf-8"));
-        StringBuilder inputString = new StringBuilder();
-        int c;
-        while ((c = in.read()) != -1) {
-            if (((char) c) == '\n')
-                break;
-            inputString.append((char) c);
+        Message message = Message.obtain();
+        Packet packet = new Packet(params);
+        message.obj = packet;
+        message.setTarget(Server.getProcessHandler());
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (packet) {
+            message.sendToTarget();
+            try {
+                while (packet.getStatus() == Packet.Status.PENDING) {
+                    packet.wait();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
-        socket.close();
-        if (inputString.toString().trim().isEmpty()) {
-            throw new Exception("没有数据返回，该源可能暂时不可用");
+        String response = packet.getResponse();
+        if (response == null || response.isEmpty()) {
+            throw new IOException("没有数据返回，该订阅源可能暂时不可用");
         }
-        return URLDecoder.decode(inputString.toString(), "utf-8");
+        return response;
     }
 }

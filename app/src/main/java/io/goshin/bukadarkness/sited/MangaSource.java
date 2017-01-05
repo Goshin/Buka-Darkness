@@ -1,6 +1,7 @@
 package io.goshin.bukadarkness.sited;
 
 import android.app.Application;
+import android.util.Base64;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -10,8 +11,11 @@ import org.noear.sited.SdNodeSet;
 import org.noear.sited.SdSource;
 import org.noear.sited.SdSourceCallback;
 
+import java.nio.charset.Charset;
+
 public class MangaSource extends SdSource {
 
+    private static final int ENGINE_VERSION = 27;
     private SdNodeSet home;
     private SdNodeSet main;
 
@@ -20,13 +24,63 @@ public class MangaSource extends SdSource {
     private int type;
 
     public MangaSource(Application app, String xml) throws Exception {
-        super(app, xml);
-        main = getBody("main");
+        if (xml.startsWith("sited::")) {
+            int start = xml.indexOf("::") + 2;
+            int end = xml.lastIndexOf("::");
+            String txt = xml.substring(start, end);
+            String key = xml.substring(end + 2);
+            xml = unsuan(txt, key);
+        }
+
+        doInit(app, xml);
+
+        xmlHeadName = "meta";
+        xmlBodyName = "main";
+        xmlScriptName = "jscript";
+
+        doLoad(app);
+
+        main = body;
         home = (SdNodeSet) main.get("home");
 
-        author = attrs.getString("author");
-        intro = attrs.getString("intro");
+        author = head.attrs.getString("author");
+        intro = head.attrs.getString("intro");
         type = main.attrs.getInt("dtype");
+    }
+
+    public static String unsuan(String str, String key) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0, len = str.length(); i < len; i++) {
+            if (i % 2 == 0) {
+                sb.append(str.charAt(i));
+            }
+        }
+
+        str = sb.toString();
+        str = new String(Base64.decode(str, Base64.NO_WRAP));
+        key = key + "ro4w78Jx";
+
+        Charset coder = Charset.forName("UTF-8");
+
+        byte[] data = str.getBytes(coder);
+        byte[] keyData = key.getBytes(coder);
+        int keyIndex = 0;
+
+        for (int x = 0; x < data.length; x++) {
+            data[x] = (byte) (data[x] ^ keyData[keyIndex]);
+            keyIndex += 1;
+
+            if (keyIndex == keyData.length) {
+                keyIndex = 0;
+            }
+        }
+        str = new String(data, coder);
+
+        return new String(Base64.decode(str, Base64.NO_WRAP));
+    }
+
+    public static String getEngineVersionName() {
+        return String.valueOf(ENGINE_VERSION);
     }
 
     public int getType() {
@@ -41,10 +95,14 @@ public class MangaSource extends SdSource {
         return intro;
     }
 
+    public boolean isRestricted() {
+        return head.attrs.getInt("vip") == 1;
+    }
+
     public void getHots(final Callback callback) {
         SdNode hots = (SdNode) home.get("hots");
         final DataModel hotsViewModel = new DataModel();
-        getNodeViewModel(hotsViewModel, true, 1, hots, new SdSourceCallback() {
+        getNodeViewModel(hotsViewModel, true, null, 1, hots, new SdSourceCallback() {
             @Override
             public void run(Integer code) {
                 callback.run(hotsViewModel.getJsonData(), MangaSource.this);

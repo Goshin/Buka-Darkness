@@ -1,5 +1,6 @@
 package io.goshin.bukadarkness;
 
+import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -9,6 +10,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
@@ -27,6 +29,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -35,7 +38,6 @@ import com.loopj.android.http.AsyncHttpResponseHandler;
 import org.noear.sited.SdApi;
 import org.noear.sited.SdLogListener;
 import org.noear.sited.SdNodeFactory;
-import org.noear.sited.SdSource;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,6 +48,7 @@ import java.util.HashMap;
 import cz.msebera.android.httpclient.Header;
 import io.goshin.bukadarkness.database.SourceSettingsDatabase;
 import io.goshin.bukadarkness.sited.MangaSource;
+import io.goshin.bukadarkness.sited.SourcePreference;
 
 public class SourceListFragment extends Fragment {
 
@@ -53,6 +56,7 @@ public class SourceListFragment extends Fragment {
     private View view;
     private FragmentActivity activity;
     private SourceCardListAdapter sourceCardListAdapter;
+    private SourcePreference sourcePreference;
 
     public SourceListFragment() {
         // Required empty public constructor
@@ -64,20 +68,42 @@ public class SourceListFragment extends Fragment {
         // Inflate the layout for this fragment
         view = inflater.inflate(R.layout.fragment_source_list, container, false);
         activity = getActivity();
+        sourcePreference = new SourcePreference(activity);
 
         SdApi.tryInit(new SdNodeFactory(), new SdLogListener() {
-            @Override
-            public void run(SdSource source, String tag, String msg, Throwable tr) {
-            }
-        });
+        }, activity.getExternalCacheDir());
 
-        if (activity.getSharedPreferences("upgrade", Context.MODE_PRIVATE).getInt("ver", 0) < 6) {
+        setupFloatingButton();
+
+        int upgradeVersion = activity.getSharedPreferences("upgrade", Context.MODE_PRIVATE).getInt("ver", 0);
+        if (upgradeVersion < 6) {
             upgradeFileName();
+        } else if (upgradeVersion < 20) {
+            upgradeFilePermission();
         } else {
             setUpRecyclerView();
         }
 
         return view;
+    }
+
+    @SuppressLint("SetWorldReadable")
+    private void upgradeFilePermission() {
+        for (String filename : activity.fileList()) {
+            if (filename.length() != 32) {
+                continue;
+            }
+            sourcePreference.addSource(filename);
+            sourcePreference.setEnable(filename, SourceSettingsDatabase.getInstance().isEnabled(filename));
+            sourcePreference.setSearchEnabled(filename, SourceSettingsDatabase.getInstance().isSearchEnabled(filename));
+            //noinspection ResultOfMethodCallIgnored
+            activity.getFileStreamPath(filename).setReadable(true, false);
+        }
+
+        SharedPreferences.Editor editor = activity.getSharedPreferences("upgrade", Context.MODE_PRIVATE).edit();
+        editor.putInt("ver", 20);
+        editor.apply();
+        setUpRecyclerView();
     }
 
     private void upgradeFileName() {
@@ -93,6 +119,9 @@ public class SourceListFragment extends Fragment {
                 String[] fileList = activity.fileList();
                 for (String filename : fileList) {
                     try {
+                        if (filename.length() != 32) {
+                            continue;
+                        }
                         FileInputStream fileInputStream = activity.openFileInput(filename);
                         byte[] buffer = new byte[fileInputStream.available()];
                         if (fileInputStream.read(buffer) == -1) {
@@ -119,10 +148,10 @@ public class SourceListFragment extends Fragment {
                     @Override
                     public void run() {
                         progressDialog.dismiss();
-                        setUpRecyclerView();
                         SharedPreferences.Editor editor = activity.getSharedPreferences("upgrade", Context.MODE_PRIVATE).edit();
                         editor.putInt("ver", 6);
                         editor.apply();
+                        upgradeFilePermission();
                     }
                 });
             }
@@ -149,6 +178,9 @@ public class SourceListFragment extends Fragment {
                 String[] fileList = activity.fileList();
                 for (String filename : fileList) {
                     try {
+                        if (filename.length() != 32) {
+                            continue;
+                        }
                         FileInputStream fileInputStream = activity.openFileInput(filename);
                         byte[] buffer = new byte[fileInputStream.available()];
                         if (fileInputStream.read(buffer) == -1) {
@@ -163,6 +195,7 @@ public class SourceListFragment extends Fragment {
                         map.put("title", mangaSource.title);
                         map.put("author", mangaSource.getAuthor());
                         map.put("intro", mangaSource.getIntro());
+                        map.put("url", mangaSource.url);
                         map.put("enabled", SourceSettingsDatabase.getInstance().isEnabled(filename) ? "1" : "0");
 
                         list.add(map);
@@ -198,6 +231,7 @@ public class SourceListFragment extends Fragment {
                                                 String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
                                                 activity.deleteFile(filename);
                                                 SourceSettingsDatabase.getInstance().delete(filename);
+                                                sourcePreference.deleteSource(filename);
                                                 sourceCardListAdapter.removeData(position);
                                             }
                                         })
@@ -209,6 +243,14 @@ public class SourceListFragment extends Fragment {
                             public void onItemCheckedChanged(View view, boolean isChecked, int position) {
                                 String filename = ((TextView) view.findViewById(R.id.textViewCardFilename)).getText().toString();
                                 SourceSettingsDatabase.getInstance().setEnabled(filename, isChecked);
+                                sourcePreference.setEnable(filename, isChecked);
+                                list.get(position).put("enabled", isChecked ? "1" : "0");
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        sourceCardListAdapter.notifyDataSetChanged();
+                                    }
+                                });
                             }
 
                             @Override
@@ -228,6 +270,7 @@ public class SourceListFragment extends Fragment {
                                             return true;
                                         }
                                         sourceSettingsDatabase.setSearchEnabled(filename, !item.isChecked());
+                                        sourcePreference.setSearchEnabled(filename, !item.isChecked());
                                         item.setChecked(!item.isChecked());
                                         return false;
                                     }
@@ -246,17 +289,49 @@ public class SourceListFragment extends Fragment {
         }).start();
     }
 
+    private void setupFloatingButton() {
+        FloatingActionButton floatingActionButton = (FloatingActionButton) view.findViewById(R.id.fab_normal);
+        floatingActionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final View dialogView = activity.getLayoutInflater().inflate(R.layout.add_source_dialog, (ViewGroup) activity.findViewById(R.id.add_source_dialog));
+                new AlertDialog.Builder(activity)
+                        .setTitle(activity.getString(R.string.add_source))
+                        .setView(dialogView)
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                installSourceFromUrl(((EditText) dialogView.findViewById(R.id.add_source_dialog_url)).getText().toString());
+                            }
+                        })
+                        .show();
+            }
+        });
+    }
+
     public void tryInstallSource(Intent intent) {
         Uri uri = intent.getData();
         if (uri == null || !uri.getScheme().equals("sited")) {
             return;
         }
-        final String url = new String(Base64.decode(uri.toString().substring(uri.toString().lastIndexOf("?") + 1), Base64.DEFAULT));
+        installSourceFromUrl(uri.toString());
+    }
+
+    private void installSourceFromUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return;
+        }
+        url = url.trim();
+        if (url.startsWith("sited://")) {
+            url = new String(Base64.decode(url.substring(url.lastIndexOf("?") + 1), Base64.DEFAULT));
+        }
+
         final Callback onError = new Callback() {
             @Override
             public void run(Object... args) {
                 String error = (String) args[0];
-                Snackbar.make(view.findViewById(R.id.recyclerView),
+                Snackbar.make(view.findViewById(R.id.source_layout),
                         activity.getString(R.string.add_source_failed) + " " + error, Snackbar.LENGTH_LONG).show();
             }
         };
@@ -270,6 +345,10 @@ public class SourceListFragment extends Fragment {
                         onError.run(activity.getString(R.string.source_type_error));
                         return;
                     }
+                    if (mangaSource.isRestricted()) {
+                        onError.run(activity.getString(R.string.source_restricted));
+                        return;
+                    }
                     String filename = mangaSource.url_md5;
                     boolean newSource = true;
                     if (activity.getFileStreamPath(filename).exists()) {
@@ -277,7 +356,8 @@ public class SourceListFragment extends Fragment {
                     }
                     writeToFile(filename, xml);
                     SourceSettingsDatabase.getInstance().add(filename);
-                    Snackbar.make(view.findViewById(R.id.recyclerView),
+                    sourcePreference.addSource(filename);
+                    Snackbar.make(view.findViewById(R.id.source_layout),
                             R.string.add_source_success, Snackbar.LENGTH_LONG).show();
 
                     HashMap<String, String> map = new HashMap<>();
@@ -285,6 +365,7 @@ public class SourceListFragment extends Fragment {
                     map.put("title", mangaSource.title);
                     map.put("author", mangaSource.getAuthor());
                     map.put("intro", mangaSource.getIntro());
+                    map.put("url", mangaSource.url);
                     map.put("enabled", "1");
                     if (newSource) {
                         sourceCardListAdapter.addData(0, map);
@@ -324,10 +405,13 @@ public class SourceListFragment extends Fragment {
         });
     }
 
+    @SuppressLint("SetWorldReadable")
     private void writeToFile(String filename, String content) throws Exception {
         FileOutputStream fileOutputStream = activity.openFileOutput(filename, Context.MODE_PRIVATE);
         fileOutputStream.write(content.getBytes());
         fileOutputStream.close();
+        //noinspection ResultOfMethodCallIgnored
+        activity.getFileStreamPath(filename).setReadable(true, false);
     }
 
     private interface Callback {
@@ -380,12 +464,15 @@ public class SourceListFragment extends Fragment {
             holder.title.setText(map.get("title"));
             holder.author.setText(activity.getString(R.string.author, map.get("author")));
             holder.intro.setText(map.get("intro"));
+            holder.url.setText(map.get("url"));
+            holder.enabledCheckbox.setOnCheckedChangeListener(null);
             holder.enabledCheckbox.setChecked(map.get("enabled").equals("1"));
 
             holder.card.setCardBackgroundColor(ContextCompat.getColor(getActivity(), R.color.cardview_light_background));
             holder.title.setTextColor(ContextCompat.getColor(getActivity(), R.color.colorPrimaryText));
             holder.author.setTextColor(ContextCompat.getColor(getActivity(), R.color.colorSecondaryText));
             holder.intro.setTextColor(ContextCompat.getColor(getActivity(), R.color.colorSecondaryText));
+            holder.url.setTextColor(ContextCompat.getColor(getActivity(), R.color.colorSecondaryText));
 
             if (onItemClickListener != null) {
                 holder.itemView.setOnClickListener(new View.OnClickListener() {
@@ -432,6 +519,7 @@ public class SourceListFragment extends Fragment {
             private TextView title;
             private TextView author;
             private TextView intro;
+            private TextView url;
             private AppCompatCheckBox enabledCheckbox;
             private AppCompatImageButton menuButton;
 
@@ -444,6 +532,7 @@ public class SourceListFragment extends Fragment {
                 title = (TextView) view.findViewById(R.id.textViewCardTitle);
                 author = (TextView) view.findViewById(R.id.textViewCardAuthor);
                 intro = (TextView) view.findViewById(R.id.textViewCardIntro);
+                url = (TextView) view.findViewById(R.id.textViewCardWebsite);
                 enabledCheckbox = (AppCompatCheckBox) view.findViewById(R.id.checkboxSourceEnabled);
                 menuButton = (AppCompatImageButton) view.findViewById(R.id.imageButtonSourceMenu);
             }

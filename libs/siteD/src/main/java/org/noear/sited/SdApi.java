@@ -1,5 +1,7 @@
 package org.noear.sited;
 
+import java.io.File;
+
 /**
  * Created by yuety on 15/12/19.
  */
@@ -7,13 +9,12 @@ public class SdApi {
 
     protected static SdNodeFactory _factory;
     protected static SdLogListener _listener;
+    protected static File _cacheRoot;
 
-    public static void tryInit(SdNodeFactory factory, SdLogListener listener) {
-        if (_factory == null)
-            _factory = factory;
-
-        if (_listener == null)
-            _listener = listener;
+    public static void tryInit(SdNodeFactory factory, SdLogListener listener, File cacheRoot) {
+        _factory = factory;
+        _listener = listener;
+        _cacheRoot = cacheRoot;
     }
 
     protected static void check() throws Exception {
@@ -21,4 +22,5 @@ public class SdApi {
             throw new Exception("未初始化");
         }
     }
+
 }
